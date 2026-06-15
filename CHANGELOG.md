@@ -4,6 +4,17 @@ All notable changes to this project are documented here. This file is generated
 from [Conventional Commit](https://www.conventionalcommits.org/) messages by
 `commit-and-tag-version` — do not edit it by hand.
 
+## 0.2.0 (2026-06-15)
+
+
+### Features
+
+* add ngx-gooey-toast library, demo app, and release tooling ([c04b8ea](https://github.com/juanvieiraprado99/ngx-gooey-toast/commit/c04b8ea81f0d1b4c831f8113154197f80a2d11c6))
+* **demo:** add Google Search Console site verification meta tag ([73ea6c3](https://github.com/juanvieiraprado99/ngx-gooey-toast/commit/73ea6c3a96e950aefe5db14cdad0bcbc9e09b070))
+* **demo:** add static prerendering (SSG) and full SEO metadata ([7abe0c5](https://github.com/juanvieiraprado99/ngx-gooey-toast/commit/7abe0c578ae2360949e0505eaa6aae4b50327fc1))
+* enhance header component with live GitHub star count and update repository link ([1dff5cf](https://github.com/juanvieiraprado99/ngx-gooey-toast/commit/1dff5cfc12a9299f0f03965efaf5f00f360104ca))
+* enhance install tabs component with animated slider and improved styles ([856a09d](https://github.com/juanvieiraprado99/ngx-gooey-toast/commit/856a09dce882f7cc903712662e52c91b8d4c933e))
+
 ## [0.2.0](https://github.com/juanprado/ngx-gooey-toast/compare/v0.1.0...v0.2.0) (2026-06-10)
 
 ### Features

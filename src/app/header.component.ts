@@ -7,6 +7,7 @@ import {
   viewChild,
 } from '@angular/core'
 import { NgOptimizedImage } from '@angular/common'
+import { httpResource } from '@angular/common/http'
 import { RouterLink, RouterLinkActive } from '@angular/router'
 import { animate, squishSpring, type AnimationController } from 'ngx-gooey-toast'
 
@@ -52,14 +53,16 @@ interface NavAnchor {
       </nav>
 
       <div class="actions">
-        <!-- Star count is mocked — project is not on GitHub yet. Swap to the live
-             GitHub API (or a build-time fetch) once the repo is public. -->
         <a
           class="btn github"
-          href="https://github.com/juanprado/ngx-gooey-toast"
+          href="https://github.com/juanvieiraprado99/ngx-gooey-toast"
           target="_blank"
           rel="noreferrer"
-          aria-label="View ngx-gooey-toast on GitHub ({{ stars() }} stars)"
+          [attr.aria-label]="
+            stars() === null
+              ? 'View ngx-gooey-toast on GitHub'
+              : 'View ngx-gooey-toast on GitHub (' + stars() + ' stars)'
+          "
         >
           <svg class="icon" viewBox="0 0 16 16" width="18" height="18" aria-hidden="true">
             <path
@@ -68,15 +71,17 @@ interface NavAnchor {
             />
           </svg>
           <span class="label">GitHub</span>
-          <span class="stars">
-            <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">
-              <path
-                fill="currentColor"
-                d="M8 1.2l1.9 3.9 4.3.6-3.1 3 .7 4.3L8 11.9 4.2 13l.7-4.3-3.1-3 4.3-.6L8 1.2Z"
-              />
-            </svg>
-            {{ starsLabel() }}
-          </span>
+          @if (stars() !== null) {
+            <span class="stars">
+              <svg viewBox="0 0 16 16" width="13" height="13" aria-hidden="true">
+                <path
+                  fill="currentColor"
+                  d="M8 1.2l1.9 3.9 4.3.6-3.1 3 .7 4.3L8 11.9 4.2 13l.7-4.3-3.1-3 4.3-.6L8 1.2Z"
+                />
+              </svg>
+              {{ starsLabel() }}
+            </span>
+          }
         </a>
 
         <a
@@ -250,10 +255,14 @@ export class HeaderComponent {
     { label: 'Docs', fragment: 'docs' },
   ]
 
-  // Mocked GitHub star count until the repository is published.
-  protected readonly stars = signal(128)
+  // Live GitHub star count from the public API (unauthenticated: 60 req/hr per IP).
+  private readonly repo = httpResource<{ stargazers_count: number }>(
+    () => 'https://api.github.com/repos/juanvieiraprado99/ngx-gooey-toast',
+  )
+  protected readonly stars = computed(() => this.repo.value()?.stargazers_count ?? null)
   protected readonly starsLabel = computed(() => {
     const n = this.stars()
+    if (n === null) return ''
     return n >= 1000 ? `${(n / 1000).toFixed(1)}k` : `${n}`
   })
 

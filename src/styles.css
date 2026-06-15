@@ -1,3 +1,33 @@
 /* You can add global styles to this file, and also import other style files */
 
 @import 'tailwindcss';
+@import 'highlight.js/styles/github.css';
+
+/* Guard against accidental horizontal scroll on mobile (wide code/tables).
+   Use `clip` not `hidden`: `overflow-x: hidden` forces `overflow-y: auto`, which
+   makes <body> a scroll container and breaks `position: sticky` on the header.
+   `clip` guards h-scroll without creating a scroll container. */
+html,
+body {
+  max-width: 100%;
+  overflow-x: clip;
+}
+
+/* Smooth anchor navigation — disabled for reduced-motion users. */
+@media (prefers-reduced-motion: no-preference) {
+  html {
+    scroll-behavior: smooth;
+  }
+}
+
+@theme {
+  --font-sans: 'Geist', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --font-display: 'Bricolage Grotesque', 'Geist', ui-sans-serif, system-ui, sans-serif;
+}
+
+/* Headings use the organic display face — echoes the gooey pill → blob morph. */
+h1,
+h2,
+h3 {
+  font-family: var(--font-display);
+}

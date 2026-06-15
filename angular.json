@@ -7,6 +7,29 @@
   "newProjectRoot": "projects",
   "projects": {
     "ngx-gooey-toast": {
+      "projectType": "library",
+      "root": "projects/ngx-gooey-toast",
+      "sourceRoot": "projects/ngx-gooey-toast/src",
+      "prefix": "lib",
+      "architect": {
+        "build": {
+          "builder": "@angular/build:ng-packagr",
+          "options": {
+            "project": "projects/ngx-gooey-toast/ng-package.json"
+          },
+          "configurations": {
+            "production": {
+              "tsConfig": "projects/ngx-gooey-toast/tsconfig.lib.prod.json"
+            },
+            "development": {
+              "tsConfig": "projects/ngx-gooey-toast/tsconfig.lib.json"
+            }
+          },
+          "defaultConfiguration": "production"
+        }
+      }
+    },
+    "demo": {
       "projectType": "application",
       "schematics": {},
       "root": "",
@@ -38,8 +61,8 @@
                 },
                 {
                   "type": "anyComponentStyle",
-                  "maximumWarning": "4kB",
-                  "maximumError": "8kB"
+                  "maximumWarning": "8kB",
+                  "maximumError": "16kB"
                 }
               ],
               "outputHashing": "all"
@@ -56,10 +79,10 @@
           "builder": "@angular/build:dev-server",
           "configurations": {
             "production": {
-              "buildTarget": "ngx-gooey-toast:build:production"
+              "buildTarget": "demo:build:production"
             },
             "development": {
-              "buildTarget": "ngx-gooey-toast:build:development"
+              "buildTarget": "demo:build:development"
             }
           },
           "defaultConfiguration": "development"

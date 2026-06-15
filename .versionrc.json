@@ -1,0 +1,18 @@
+{
+  "packageFiles": [{ "filename": "projects/ngx-gooey-toast/package.json", "type": "json" }],
+  "bumpFiles": [{ "filename": "projects/ngx-gooey-toast/package.json", "type": "json" }],
+  "header": "# Changelog\n\nAll notable changes to this project are documented here. This file is generated\nfrom [Conventional Commit](https://www.conventionalcommits.org/) messages by\n`commit-and-tag-version` — do not edit it by hand.\n",
+  "types": [
+    { "type": "feat", "section": "Features" },
+    { "type": "fix", "section": "Bug Fixes" },
+    { "type": "perf", "section": "Performance Improvements" },
+    { "type": "revert", "section": "Reverts" },
+    { "type": "docs", "hidden": true },
+    { "type": "style", "hidden": true },
+    { "type": "chore", "hidden": true },
+    { "type": "refactor", "section": "Refactors" },
+    { "type": "test", "hidden": true },
+    { "type": "build", "hidden": true },
+    { "type": "ci", "hidden": true }
+  ]
+}

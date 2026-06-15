@@ -1,59 +1,79 @@
-# NgxGooeyToast
+# ngx-gooey-toast — demo playground
 
-This project was generated using [Angular CLI](https://github.com/angular/angular-cli) version 21.2.14.
+This repo is the **workspace and demo playground** for
+[`ngx-gooey-toast`](./projects/ngx-gooey-toast): a morphing **pill → blob** toast
+for Angular, an Angular port of the React
+[`goey-toast`](https://goey-toast.vercel.app/). The library has **zero runtime
+dependencies** — the spring engine is hand-rolled on `requestAnimationFrame`
+(no framer-motion).
 
-## Development server
+`npm start` serves the interactive demo (hero, live examples, and a toast
+builder). The publishable package lives in `projects/ngx-gooey-toast/` and ships
+its own README with the full install/usage/API docs.
 
-To start a local development server, run:
+## The library (`projects/ngx-gooey-toast`)
 
-```bash
-ng serve
+Two public exports:
+
+- **`GooeyToasterComponent`** (`<gooey-toaster>`) — render once near the app
+  root. Inputs mirror the React `GooeyToasterProps`: `position`, `theme`, `gap`,
+  `offset`, `visibleToasts`, `preset`, `spring`, `bounce`, `showProgress`,
+  `closeButton`, `expand`, …
+- **`GooeyToastService`** (root singleton) — the imperative API:
+  `success/error/info/warning/show`, in-place `update`, `promise` lifecycle
+  (loading → success/error), `dismiss` (by id, by filter, or all), plus
+  history/replay.
+
+```ts
+const toast = inject(GooeyToastService)
+toast.success('Saved!')
+toast.promise(upload(), { loading: 'Uploading…', success: 'Done', error: 'Failed' })
 ```
 
-Once the server is running, open your browser and navigate to `http://localhost:4200/`. The application will automatically reload whenever you modify any of the source files.
+Internals: the "gooey" shape is a parametric SVG path (`gooey-morph.ts`, `t` 0→1
+= pill→blob), animated by a hand-rolled spring/tween engine (`spring-animate.ts`).
+Styling is component-scoped CSS (no Tailwind required by the library), tuned to
+WCAG AA. **For full usage and API docs, see
+[`projects/ngx-gooey-toast/`](./projects/ngx-gooey-toast).**
 
-## Code scaffolding
+## The demo page (`npm start`)
 
-Angular CLI includes powerful code scaffolding tools. To generate a new component, run:
+A single playground page (`src/app/home.component.ts`) plus a `/changelog` route:
 
-```bash
-ng generate component component-name
-```
+- **Hero** — logo, intro, and an "Inspired by React goey-toast" link.
+- **Examples** — categorized buttons that fire live toasts:
+  - **Toast Types** — default, success, error, warning, info.
+  - **With Description** / **With Action Button** (incl. an action that morphs to
+    a success pill).
+  - **Custom Component Body** — any Angular `TemplateRef` as the description.
+  - **Rich Description (sanitized)** — Markdown, HTML, and an XSS attempt showing
+    scripts/handlers are stripped.
+  - **No Spring** — eased morph without overshoot.
+  - **Promise** — loading → success/error, in pill and expanded forms.
+  - **Update Toast** — `info` updated in place to success/error.
+  - **Progress Bar**, **History & Replay**, **Callbacks** (`onDismiss`/`onAutoClose`).
+- **Toast builder** — an interactive panel (position, type, title, description,
+  action, fill color / border, duration, animation preset, spring + bounce,
+  theme, and toggles like progress / close button / coalesce / merge / haptics)
+  that **generates the matching code in real time**. "Fire ×3" demonstrates
+  duplicate coalescing; drag a toast away to dismiss it.
+- **Documentation** — install tabs plus tables of `<gooey-toaster>` props and
+  `GooeyToastService` methods.
+- **`/changelog`** — rendered from the generated `CHANGELOG.md`.
 
-For a complete list of available schematics (such as `components`, `directives`, or `pipes`), run:
-
-```bash
-ng generate --help
-```
-
-## Building
-
-To build the project run:
-
-```bash
-ng build
-```
-
-This will compile your project and store the build artifacts in the `dist/` directory. By default, the production build optimizes your application for performance and speed.
-
-## Running unit tests
-
-To execute unit tests with the [Vitest](https://vitest.dev/) test runner, use the following command:
-
-```bash
-ng test
-```
-
-## Running end-to-end tests
-
-For end-to-end (e2e) testing, run:
+## Commands
 
 ```bash
-ng e2e
+npm start                          # demo playground (serves the "demo" project)
+npm test                           # unit tests (morph, spring, service)
+npm run build:lib                  # build the publishable package → dist/ngx-gooey-toast
+npm publish ./dist/ngx-gooey-toast # publish to npm
 ```
 
-Angular CLI does not come with an end-to-end testing framework by default. You can choose one that suits your needs.
+## Repo layout
 
-## Additional Resources
-
-For more information on using the Angular CLI, including detailed command references, visit the [Angular CLI Overview and Command Reference](https://angular.dev/tools/cli) page.
+- `projects/ngx-gooey-toast/` — the **library** (ng-packagr). Source under
+  `src/lib/`, public surface in `src/public-api.ts`. **Edit here.**
+- `src/` — the **demo** playground. Imports the library live from source via the
+  `ngx-gooey-toast` path alias in `tsconfig.json`, so changes show up in
+  `npm start` without rebuilding the lib.

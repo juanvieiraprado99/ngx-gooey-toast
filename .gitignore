@@ -6,6 +6,8 @@
 /out-tsc
 /bazel-out
 
+*.tgz
+
 # Node
 /node_modules
 npm-debug.log
@@ -28,6 +30,7 @@ yarn-error.log
 !.vscode/extensions.json
 !.vscode/mcp.json
 .history/*
+.angular
 
 # Miscellaneous
 /.angular/cache

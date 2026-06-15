@@ -1,0 +1,400 @@
+:host {
+  display: block;
+  /* We own both-axis swipe-to-dismiss gestures on the toast itself. */
+  touch-action: none;
+}
+
+/* Wrapper — single container for both pill and blob states */
+.wrapper {
+  pointer-events: auto;
+  cursor: default;
+  font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto,
+    'Helvetica Neue', sans-serif;
+  position: relative;
+  width: fit-content;
+}
+.pos-center {
+  margin: 0 auto;
+}
+.pos-right {
+  margin-left: auto;
+}
+
+/* In merge mode the shared goo layer owns the (merged) drop-shadow, so drop
+   this toast's own shadow to avoid double-shadowing. */
+:host(.merge) .blob,
+:host(.merge) .wrapper[data-theme='dark'] .blob {
+  filter: none;
+}
+
+/* SVG background — parametric morph from pill to blob */
+.blob {
+  position: absolute;
+  top: 0;
+  left: 0;
+  overflow: visible;
+  pointer-events: none;
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.06))
+    drop-shadow(0 1px 4px rgba(0, 0, 0, 0.04));
+}
+.wrapper[data-theme='dark'] .blob {
+  filter: drop-shadow(0 4px 12px rgba(0, 0, 0, 0.3))
+    drop-shadow(0 1px 4px rgba(0, 0, 0, 0.2));
+}
+
+/* Content on top of SVG background */
+.content {
+  position: relative;
+  z-index: 1;
+  padding: 7px 10px;
+  transition: padding 0.35s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.content.expanded {
+  padding: 7px 10px 16px 10px;
+  min-width: 300px;
+  max-width: 380px;
+}
+.content-mirror {
+  transform: scaleX(-1);
+}
+.ta-center {
+  text-align: center;
+}
+.ta-right {
+  text-align: right;
+}
+
+/* Header */
+.header {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  color: #555;
+  /* Accent glides between phase colours when a toast morphs type. */
+  transition: color 0.35s ease;
+}
+/* Light-theme phase accents: darkened so the 12px title meets WCAG AA
+   (≥ 4.5:1) on the default white fill. */
+.header[data-phase='success'] {
+  color: #2e7d32;
+}
+.header[data-phase='error'] {
+  color: #c62828;
+}
+.header[data-phase='warning'] {
+  color: #a16207;
+}
+.header[data-phase='info'] {
+  color: #1565c0;
+}
+.header > .title,
+.header > .timestamp {
+  min-width: 0;
+  text-overflow: ellipsis;
+  overflow: hidden;
+  white-space: nowrap;
+}
+.header > .timestamp {
+  margin-left: auto;
+}
+.wrapper[data-theme='dark'] .header {
+  color: #ccc;
+}
+.wrapper[data-theme='dark'] .header[data-phase='success'] {
+  color: #66bb6a;
+}
+.wrapper[data-theme='dark'] .header[data-phase='error'] {
+  color: #ef5350;
+}
+.wrapper[data-theme='dark'] .header[data-phase='warning'] {
+  color: #ffb300;
+}
+.wrapper[data-theme='dark'] .header[data-phase='info'] {
+  color: #42a5f5;
+}
+
+.icon {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  line-height: 0;
+}
+
+.title {
+  font-size: 12px;
+  font-weight: 700;
+  /* >1 so descenders (p, g, q) aren't clipped by overflow:hidden ellipsis box */
+  line-height: 1.4;
+  white-space: nowrap;
+  color: inherit;
+  padding: 0 4px 0 2px;
+}
+
+/* Coalesced-duplicate count badge (×2, ×3…). Inherits the phase color via
+   currentColor; tinted background keeps WCAG AA contrast in both themes. */
+.count-badge {
+  flex-shrink: 0;
+  margin-left: -4px;
+  padding: 1px 6px;
+  font-size: 11px;
+  font-weight: 700;
+  line-height: 1.4;
+  font-variant-numeric: tabular-nums;
+  color: inherit;
+  background: color-mix(in srgb, currentColor 16%, transparent);
+  border-radius: 999px;
+}
+
+.timestamp {
+  font-size: 11px;
+  font-weight: 400;
+  color: #6b6b6b; /* ≥ 4.5:1 on white (was #999 ≈ 2.8:1) */
+  white-space: nowrap;
+  line-height: 1;
+  padding-left: 6px;
+}
+.timestamp-line {
+  text-align: right;
+  margin-top: 8px;
+  padding-left: 0;
+}
+.wrapper[data-theme='dark'] .timestamp {
+  color: #9e9e9e; /* ≥ 4.5:1 on #1a1a1a (was #777 ≈ 3.9:1) */
+}
+
+.description {
+  font-size: 13px;
+  font-weight: 400;
+  color: #444;
+  line-height: 1.55;
+  margin-top: 16px;
+  overflow: hidden;
+  text-align: left;
+}
+.description-row {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+.description-body {
+  flex: 1;
+  min-width: 0;
+}
+.wrapper[data-theme='dark'] .description {
+  color: #e0e0e0;
+}
+
+/* Inline rich content (sanitized html / light markdown) inside a description */
+.rich-content {
+  word-break: break-word;
+}
+.rich-content code {
+  font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  font-size: 0.85em;
+  padding: 0.05em 0.35em;
+  border-radius: 4px;
+  background: rgba(0, 0, 0, 0.06);
+}
+.rich-content a {
+  color: #2563eb;
+  text-decoration: underline;
+  text-underline-offset: 2px;
+}
+.rich-content a:focus-visible {
+  outline: 2px solid #6366f1;
+  outline-offset: 2px;
+}
+.wrapper[data-theme='dark'] .rich-content code {
+  background: rgba(255, 255, 255, 0.12);
+}
+.wrapper[data-theme='dark'] .rich-content a {
+  color: #7aa2ff;
+}
+
+/* Action button */
+.action {
+  margin-top: 12px;
+  overflow: hidden;
+}
+.action-btn {
+  display: block;
+  box-sizing: border-box;
+  width: 100%;
+  border: none;
+  border-radius: 999px;
+  padding: 10px 20px;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  font-family: inherit;
+  text-align: center;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+  transition: background 0.15s ease, color 0.35s ease, filter 0.15s ease;
+  background: #e8e8e8;
+  color: #555;
+}
+.action-btn:focus:not(:focus-visible) {
+  outline: none;
+}
+.action-btn:focus-visible {
+  outline: 2px solid currentColor;
+  outline-offset: 2px;
+}
+/* Phase text on the tinted fills is darkened/lightened for ≥ 4.5:1 (AA);
+   hover is a uniform brightness shift so the ratio survives the hover state. */
+.action-btn:hover {
+  filter: brightness(0.96);
+}
+.action-btn[data-phase='success'] {
+  background: #c8e6c9;
+  color: #166534;
+}
+.action-btn[data-phase='error'] {
+  background: #ffcdd2;
+  color: #991b1b;
+}
+.action-btn[data-phase='warning'] {
+  background: #ffecb3;
+  color: #854d0e;
+}
+.action-btn[data-phase='info'] {
+  background: #bbdefb;
+  color: #1e40af;
+}
+.wrapper[data-theme='dark'] .action-btn {
+  background: #3a3a3a;
+  color: #ccc;
+}
+.wrapper[data-theme='dark'] .action-btn:hover {
+  filter: brightness(1.12);
+}
+.wrapper[data-theme='dark'] .action-btn[data-phase='success'] {
+  background: #1b5e20;
+  color: #a5d6a7;
+}
+.wrapper[data-theme='dark'] .action-btn[data-phase='error'] {
+  background: #b71c1c;
+  color: #ffcdd2;
+}
+.wrapper[data-theme='dark'] .action-btn[data-phase='warning'] {
+  background: #4a3800;
+  color: #ffb300;
+}
+.wrapper[data-theme='dark'] .action-btn[data-phase='info'] {
+  background: #0d47a1;
+  color: #bbdefb;
+}
+
+/* Progress countdown bar */
+.progress {
+  margin-top: 10px;
+  overflow: hidden;
+  border-radius: 2px;
+  height: 3px;
+  background: rgba(0, 0, 0, 0.06);
+  transition: opacity 0.2s ease;
+}
+.progress-bar {
+  height: 100%;
+  border-radius: 2px;
+  transform-origin: left center;
+  background: #757575; /* ≥ 3:1 (non-text UI) on white */
+  transition: background-color 0.35s ease;
+  animation: gooey-progress-shrink var(--gooey-progress-duration, 4000ms) linear
+    forwards;
+}
+.progress.paused .progress-bar {
+  animation-play-state: paused;
+}
+.progress-bar[data-phase='success'] {
+  background: #2e7d32;
+}
+.progress-bar[data-phase='error'] {
+  background: #c62828;
+}
+.progress-bar[data-phase='warning'] {
+  background: #a16207;
+}
+.progress-bar[data-phase='info'] {
+  background: #1565c0;
+}
+@keyframes gooey-progress-shrink {
+  from {
+    transform: scaleX(1);
+  }
+  to {
+    transform: scaleX(0);
+  }
+}
+.wrapper[data-theme='dark'] .progress {
+  background: rgba(255, 255, 255, 0.1);
+}
+.wrapper[data-theme='dark'] .progress-bar {
+  background: #888;
+}
+.wrapper[data-theme='dark'] .progress-bar[data-phase='success'] {
+  background: #66bb6a;
+}
+.wrapper[data-theme='dark'] .progress-bar[data-phase='error'] {
+  background: #ef5350;
+}
+.wrapper[data-theme='dark'] .progress-bar[data-phase='warning'] {
+  background: #ffb300;
+}
+.wrapper[data-theme='dark'] .progress-bar[data-phase='info'] {
+  background: #42a5f5;
+}
+
+/* Close button — appears on hover */
+.close {
+  position: absolute;
+  top: -6px;
+  left: -6px;
+  z-index: 2;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  padding: 0;
+  border-style: solid;
+  border-radius: 50%;
+  color: #444;
+  cursor: pointer;
+  opacity: 0;
+  transition: opacity 0.15s ease, transform 0.15s ease;
+  pointer-events: none;
+  outline: none;
+  -webkit-tap-highlight-color: transparent;
+}
+.close-right {
+  left: auto;
+  right: -1px;
+  top: 6px;
+}
+.wrapper:hover .close,
+.wrapper:focus-within .close {
+  opacity: 1;
+  pointer-events: auto;
+}
+.close:hover {
+  transform: scale(1.15);
+}
+.close:active {
+  transform: scale(0.95);
+}
+.wrapper[data-theme='dark'] .close {
+  color: #e0e0e0;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .header,
+  .action-btn,
+  .progress-bar {
+    transition: none;
+  }
+}

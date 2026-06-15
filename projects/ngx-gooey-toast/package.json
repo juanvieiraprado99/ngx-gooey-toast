@@ -1,0 +1,22 @@
+{
+  "name": "ngx-gooey-toast",
+  "version": "0.2.0",
+  "description": "Morphing pill → blob toasts for Angular. Built on signals and a hand-rolled spring engine — zero runtime dependencies.",
+  "keywords": [
+    "angular",
+    "toast",
+    "gooey",
+    "notifications",
+    "signals"
+  ],
+  "license": "MIT",
+  "sideEffects": false,
+  "peerDependencies": {
+    "@angular/common": "^21.0.0",
+    "@angular/core": "^21.0.0",
+    "@angular/platform-browser": "^21.0.0"
+  },
+  "dependencies": {
+    "tslib": "^2.3.0"
+  }
+}

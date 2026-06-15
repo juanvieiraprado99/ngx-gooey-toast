@@ -4,9 +4,15 @@
   "scripts": {
     "ng": "ng",
     "start": "ng serve",
+    "prestart": "npm run changelog:build",
     "build": "ng build",
+    "prebuild": "npm run changelog:build",
     "watch": "ng build --watch --configuration development",
-    "test": "ng test"
+    "test": "ng test",
+    "build:lib": "ng build ngx-gooey-toast",
+    "changelog:build": "node scripts/changelog-to-ts.mjs",
+    "release": "commit-and-tag-version",
+    "prepare": "husky"
   },
   "private": true,
   "packageManager": "npm@11.13.0",
@@ -17,6 +23,7 @@
     "@angular/forms": "^21.2.0",
     "@angular/platform-browser": "^21.2.0",
     "@angular/router": "^21.2.0",
+    "highlight.js": "^11.11.1",
     "rxjs": "~7.8.0",
     "tslib": "^2.3.0"
   },
@@ -24,8 +31,13 @@
     "@angular/build": "^21.2.14",
     "@angular/cli": "^21.2.14",
     "@angular/compiler-cli": "^21.2.0",
+    "@commitlint/cli": "^19.6.1",
+    "@commitlint/config-conventional": "^19.6.0",
     "@tailwindcss/postcss": "^4.1.12",
+    "commit-and-tag-version": "^12.5.0",
+    "husky": "^9.1.7",
     "jsdom": "^28.0.0",
+    "ng-packagr": "^21.2.0",
     "postcss": "^8.5.3",
     "prettier": "^3.8.1",
     "tailwindcss": "^4.1.12",

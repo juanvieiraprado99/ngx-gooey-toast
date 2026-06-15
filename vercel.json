@@ -3,5 +3,6 @@
   "buildCommand": "npm run build",
   "outputDirectory": "dist/demo/browser",
   "framework": null,
-  "rewrites": [{ "source": "/(.*)", "destination": "/index.html" }]
+  "cleanUrls": true,
+  "trailingSlash": false
 }

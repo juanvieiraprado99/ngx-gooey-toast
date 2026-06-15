@@ -1,5 +1,6 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core'
+import { ChangeDetectionStrategy, Component, inject, OnInit } from '@angular/core'
 import { releases } from './changelog.data'
+import { SeoService } from './seo.service'
 
 @Component({
   selector: 'app-changelog',
@@ -110,7 +111,19 @@ import { releases } from './changelog.data'
     }
   `,
 })
-export class ChangelogComponent {
+export class ChangelogComponent implements OnInit {
+  private readonly seo = inject(SeoService)
+
   // Generated from CHANGELOG.md at build time (scripts/changelog-to-ts.mjs).
   protected readonly releases = releases
+
+  ngOnInit(): void {
+    this.seo.update({
+      title: 'Changelog — ngx-gooey-toast',
+      description:
+        'Notable changes to ngx-gooey-toast. Follows Keep a Changelog and semantic ' +
+        'versioning — new features, fixes, and releases.',
+      path: '/changelog',
+    })
+  }
 }

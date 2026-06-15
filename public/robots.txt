@@ -1,0 +1,4 @@
+User-agent: *
+Allow: /
+
+Sitemap: https://ngx-gooey-toast.vercel.app/sitemap.xml

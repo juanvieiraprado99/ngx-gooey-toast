@@ -1,8 +1,9 @@
-import { ChangeDetectionStrategy, Component } from '@angular/core'
+import { ChangeDetectionStrategy, Component, inject, OnInit } from '@angular/core'
 import { NgOptimizedImage } from '@angular/common'
 import { DemoComponent } from './demo.component'
 import { DocsComponent } from './docs.component'
 import { InstallTabsComponent } from './install-tabs.component'
+import { SeoService } from './seo.service'
 
 @Component({
   selector: 'app-home',
@@ -102,4 +103,17 @@ import { InstallTabsComponent } from './install-tabs.component'
     }
   `,
 })
-export class HomeComponent {}
+export class HomeComponent implements OnInit {
+  private readonly seo = inject(SeoService)
+
+  ngOnInit(): void {
+    this.seo.update({
+      title: 'ngx-gooey-toast — Morphing pill → blob toasts for Angular',
+      description:
+        'Morphing pill → blob toast notifications for Angular. Built on signals and a ' +
+        'hand-rolled spring engine with zero runtime dependencies. Install, configure, ' +
+        'and see live examples.',
+      path: '/',
+    })
+  }
+}

@@ -2,11 +2,12 @@ import { ChangeDetectionStrategy, Component } from '@angular/core'
 import { NgOptimizedImage } from '@angular/common'
 import { DemoComponent } from './demo.component'
 import { DocsComponent } from './docs.component'
+import { InstallTabsComponent } from './install-tabs.component'
 
 @Component({
   selector: 'app-home',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  imports: [DemoComponent, DocsComponent, NgOptimizedImage],
+  imports: [DemoComponent, DocsComponent, InstallTabsComponent, NgOptimizedImage],
   template: `
     <div class="mx-auto max-w-6xl px-4 py-10 sm:px-6 sm:py-14">
       <header class="max-w-2xl">
@@ -33,6 +34,10 @@ import { DocsComponent } from './docs.component'
             rel="noreferrer"
           >Inspired by React goey-toast →</a>
         </p>
+
+        <div class="mt-6 max-w-md">
+          <app-install-tabs />
+        </div>
       </header>
 
       <div id="examples" class="anchor mt-10 sm:mt-12">

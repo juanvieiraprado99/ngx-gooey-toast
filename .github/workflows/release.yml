@@ -1,18 +1,20 @@
 name: Release
 
-# Fires on every push to main. The release is driven by the LIB version in
-# projects/ngx-gooey-toast/package.json: when that version doesn't yet have a
-# matching `vX.Y.Z` tag, this builds the lib, tags the commit, and cuts a GitHub
-# Release whose body is the matching section of CHANGELOG.md. Commits that don't
-# bump the version are a no-op (the tag already exists), so normal pushes to main
-# never create a release.
+# Fires on every push to main (and can be run manually). The release is driven by
+# the LIB version in projects/ngx-gooey-toast/package.json:
+#   - if that version has no `vX.Y.Z` tag yet → build, tag, cut a GitHub Release
+#     whose body is the matching CHANGELOG.md section;
+#   - if that version isn't on npm yet → publish it (uses the NPM_TOKEN secret).
+# Both checks are independent, so a version can be (re)published even if it was
+# already tagged. Commits that don't bump the version are a no-op.
 #
-# To cut a release: bump the version in projects/ngx-gooey-toast/package.json,
-# add the matching CHANGELOG.md section, commit, and push to main.
+# To cut a release: bump projects/ngx-gooey-toast/package.json, add the matching
+# CHANGELOG.md section, commit, and push to main.
 on:
   push:
     branches:
       - main
+  workflow_dispatch:
 
 permissions:
   contents: write
@@ -31,48 +33,62 @@ jobs:
           # Full history + tags so we can tell whether this version already shipped.
           fetch-depth: 0
 
-      - name: Read library version
-        id: ver
-        run: echo "version=$(node -p "require('./projects/ngx-gooey-toast/package.json').version")" >> "$GITHUB_OUTPUT"
-
-      - name: Check whether this version is already tagged
-        id: check
-        env:
-          VERSION: ${{ steps.ver.outputs.version }}
-        run: |
-          if git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null; then
-            echo "exists=true" >> "$GITHUB_OUTPUT"
-            echo "v$VERSION already released — skipping."
-          else
-            echo "exists=false" >> "$GITHUB_OUTPUT"
-            echo "v$VERSION is new — releasing."
-          fi
-
       - uses: actions/setup-node@v4
-        if: steps.check.outputs.exists == 'false'
         with:
           node-version: 22
           cache: npm
           registry-url: https://registry.npmjs.org
 
+      - name: Read library version
+        id: ver
+        run: echo "version=$(node -p "require('./projects/ngx-gooey-toast/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Check whether this version is already tagged
+        id: tag
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          if git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "v$VERSION already tagged — will not re-create the GitHub Release."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "v$VERSION is a new tag."
+          fi
+
+      - name: Check whether this version is already on npm
+        id: npm
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          PUBLISHED="$(npm view "ngx-gooey-toast@$VERSION" version 2>/dev/null || true)"
+          if [ "$PUBLISHED" = "$VERSION" ]; then
+            echo "publish=false" >> "$GITHUB_OUTPUT"
+            echo "ngx-gooey-toast@$VERSION already on npm — skipping publish."
+          else
+            echo "publish=true" >> "$GITHUB_OUTPUT"
+            echo "ngx-gooey-toast@$VERSION not on npm — will publish."
+          fi
+
       - name: Install dependencies
-        if: steps.check.outputs.exists == 'false'
+        if: steps.tag.outputs.exists == 'false' || steps.npm.outputs.publish == 'true'
         run: npm ci
 
       - name: Build library
-        if: steps.check.outputs.exists == 'false'
+        if: steps.tag.outputs.exists == 'false' || steps.npm.outputs.publish == 'true'
         run: npm run build:lib
 
+      # --- GitHub Release (only when the tag is new) -------------------------
       # Pass the version via env (not inline ${{ }} interpolation) so it can't
-      # inject into the shell, mirroring the original tag-based workflow.
+      # inject into the shell.
       - name: Extract release notes
-        if: steps.check.outputs.exists == 'false'
+        if: steps.tag.outputs.exists == 'false'
         env:
           VERSION: ${{ steps.ver.outputs.version }}
         run: node scripts/extract-release-notes.mjs "v$VERSION" > RELEASE_NOTES.md
 
       - name: Create GitHub Release
-        if: steps.check.outputs.exists == 'false'
+        if: steps.tag.outputs.exists == 'false'
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           tag_name: v${{ steps.ver.outputs.version }}
@@ -80,9 +96,11 @@ jobs:
           name: v${{ steps.ver.outputs.version }}
           body_path: RELEASE_NOTES.md
 
-      # Uncomment to also publish to npm (requires the NPM_TOKEN repo secret).
-      # - name: Publish to npm
-      #   if: steps.check.outputs.exists == 'false'
-      #   run: npm publish ./dist/ngx-gooey-toast --access public
-      #   env:
-      #     NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}
+      # --- npm publish (only when the version isn't on npm yet) --------------
+      # NODE_AUTH_TOKEN is read from the npmrc that setup-node wrote; an npm
+      # automation token bypasses 2FA/OTP.
+      - name: Publish to npm
+        if: steps.npm.outputs.publish == 'true'
+        run: npm publish ./dist/ngx-gooey-toast --access public
+        env:
+          NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

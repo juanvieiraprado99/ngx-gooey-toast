@@ -13,6 +13,7 @@ import {
   rubberBand,
   shouldDismissSwipe,
   verticalDismissAllowed,
+  lerpDims,
 } from '../projects/ngx-gooey-toast/src/lib/gooey-toast.component'
 
 describe('gooey-morph', () => {
@@ -84,6 +85,20 @@ describe('swipe gesture', () => {
   })
 })
 
+describe('lerpDims', () => {
+  const a = { pw: 0, bw: 10, th: 100 }
+  const b = { pw: 20, bw: 50, th: 200 }
+
+  it('returns the start dims at t=0 and the end dims at t=1', () => {
+    expect(lerpDims(a, b, 0)).toEqual(a)
+    expect(lerpDims(a, b, 1)).toEqual(b)
+  })
+
+  it('interpolates each dimension linearly at the midpoint', () => {
+    expect(lerpDims(a, b, 0.5)).toEqual({ pw: 10, bw: 30, th: 150 })
+  })
+})
+
 describe('rich content', () => {
   it('renderMarkdown formats the supported subset', () => {
     expect(renderMarkdown('**b**')).toBe('<strong>b</strong>')
@@ -93,6 +108,14 @@ describe('rich content', () => {
     expect(renderMarkdown('[x](https://a.com)')).toContain(
       '<a href="https://a.com" target="_blank" rel="noopener noreferrer">x</a>',
     )
+  })
+
+  it('renderMarkdown only emphasizes when the open/close delimiter matches', () => {
+    expect(renderMarkdown('*i*')).toBe('<em>i</em>')
+    expect(renderMarkdown('_i_')).toBe('<em>i</em>')
+    // Mismatched delimiters must NOT become emphasis.
+    expect(renderMarkdown('*foo_')).toBe('*foo_')
+    expect(renderMarkdown('_foo*')).toBe('_foo*')
   })
 
   it('renderMarkdown escapes HTML so injected tags cannot execute', () => {
@@ -247,6 +270,18 @@ describe('GooeyToastService', () => {
     expect(s.toasts().length).toBe(1)
     expect(s.toasts()[0].title()).toBe('Saved')
     expect(s.toasts()[0].type()).toBe('success')
+  })
+
+  it('replay reflects an update() applied before dismissal', () => {
+    const s = new GooeyToastService()
+    const id = s.info('Connecting')
+    s.update(id, { title: 'Connected', type: 'success' })
+    s.remove(id, 'manual')
+    const newId = s.replay(s.history()[0].id)
+    expect(newId).toBeDefined()
+    const entry = s.toasts().find((t) => t.id === newId)!
+    expect(entry.title()).toBe('Connected')
+    expect(entry.type()).toBe('success')
   })
 
   it('history is bounded and evicts the oldest replay closure', () => {

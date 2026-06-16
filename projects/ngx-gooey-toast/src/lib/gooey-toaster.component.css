@@ -53,12 +53,15 @@
 
 @media only screen and (max-width: 600px) {
   .toaster {
-    left: 16px;
-    right: 16px;
-    transform: none;
-    align-items: center;
-    max-width: none;
+    max-width: calc(100vw - 32px);
   }
+  .toaster[data-position$='left'] {
+    left: 16px;
+  }
+  .toaster[data-position$='right'] {
+    right: 16px;
+  }
+  /* center keeps left:50% + translateX(-50%) from the base rule — no override */
 }
 
 /* Enter / leave — slide + scale with a springy overshoot.

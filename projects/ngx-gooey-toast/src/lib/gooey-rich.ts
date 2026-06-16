@@ -32,7 +32,7 @@ export function renderMarkdown(md: string): string {
   let s = escapeHtml(md)
   s = s.replace(/`([^`]+)`/g, '<code>$1</code>')
   s = s.replace(/\*\*([^*]+)\*\*/g, '<strong>$1</strong>')
-  s = s.replace(/(?:\*|_)([^*_\n]+)(?:\*|_)/g, '<em>$1</em>')
+  s = s.replace(/(\*|_)([^*_\n]+)\1/g, '<em>$2</em>')
   s = s.replace(
     /\[([^\]]+)\]\((https?:\/\/[^\s)]+|mailto:[^\s)]+)\)/g,
     '<a href="$2" target="_blank" rel="noopener noreferrer">$1</a>',

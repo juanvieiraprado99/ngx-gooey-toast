@@ -12,7 +12,7 @@ import { fileURLToPath } from 'node:url'
 import { dirname, resolve } from 'node:path'
 
 const here = dirname(fileURLToPath(import.meta.url))
-const md = readFileSync(resolve(here, '..', 'CHANGELOG.md'), 'utf8')
+const md = readFileSync(resolve(here, '..', 'CHANGELOG.md'), 'utf8').replace(/\r\n/g, '\n')
 
 const wanted = (process.argv[2] ?? '').replace(/^v/, '').trim()
 const blocks = md.split(/^## /m).slice(1)

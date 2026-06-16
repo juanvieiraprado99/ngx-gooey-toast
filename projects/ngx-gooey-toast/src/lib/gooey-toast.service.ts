@@ -261,6 +261,11 @@ export class GooeyToastService {
    * Mutate a live toast in place (title, description, type, action, icon…).
    * No-op if the id isn't found. Create the toast with `coalesce: false` so a
    * duplicate-looking "loading" toast isn't merged before you update it.
+   *
+   * Note: `duration` is fixed at creation and cannot be changed here — the
+   * auto-dismiss timer keeps counting from the toast's original duration. Set
+   * the final duration when you create the toast (e.g. `duration: Infinity`
+   * while it's a "loading" status you'll later resolve).
    * @example
    * const id = toast.info('Connecting…', { coalesce: false })
    * // later…
@@ -474,11 +479,34 @@ export class GooeyToastService {
     })
     this.announce(this.message(title, options?.description), this.politeness(type))
     this.triggerHaptic(type)
-    // Replay re-fires the original call as a fresh toast (strip id so it never
-    // updates in place). Refs in `options` are preserved → faithful replay.
-    this.replayFns.set(id, () => this.create(title, type, { ...options, id: undefined }))
+    // Replay re-fires the toast as a fresh one (no id → never updates in place).
+    // It reads the entry's *current* state, so a toast mutated via `update()` is
+    // replayed in its latest form; styling refs on the entry are preserved.
+    this.replayFns.set(id, () => this.replayEntry(entry))
     this.push(entry)
     return id
+  }
+
+  /** Re-fire a (possibly `update()`d) entry as a brand-new toast. */
+  private replayEntry(entry: GooeyToastEntry): string | number {
+    return this.create(entry.title(), entry.type(), {
+      description: entry.description(),
+      action: entry.action(),
+      icon: entry.icon(),
+      classNames: entry.classNames,
+      fillColor: entry.fillColor,
+      borderColor: entry.borderColor,
+      borderWidth: entry.borderWidth,
+      timing: entry.timing,
+      preset: entry.preset,
+      spring: entry.spring,
+      bounce: entry.bounce,
+      showProgress: entry.showProgress,
+      showTimestamp: entry.showTimestamp(),
+      duration: entry.duration,
+      onDismiss: entry.onDismiss,
+      onAutoClose: entry.onAutoClose,
+    })
   }
 
   private makeEntry(init: {

@@ -16,6 +16,58 @@ export interface Release {
 
 export const releases: Release[] = [
   {
+    "version": "0.2.1",
+    "date": "2026-06-15",
+    "changes": [
+      {
+        "type": "fixed",
+        "text": "replay now reflects an in-place `update()` instead of re-showing the original toast"
+      },
+      {
+        "type": "fixed",
+        "text": "markdown emphasis only renders when the `*`/`_` open and close delimiters match"
+      },
+      {
+        "type": "changed",
+        "text": "cache static content padding so `measure()` skips repeated `getComputedStyle`"
+      },
+      {
+        "type": "changed",
+        "text": "dirty-check the metaball merge loop, skipping unchanged per-frame path writes"
+      },
+      {
+        "type": "changed",
+        "text": "share a single `lerpDims` helper across the morph/resize animations"
+      }
+    ]
+  },
+  {
+    "version": "0.2.0",
+    "date": "2026-06-15",
+    "changes": [
+      {
+        "type": "added",
+        "text": "add ngx-gooey-toast library, demo app, and release tooling"
+      },
+      {
+        "type": "added",
+        "text": "**demo:** add Google Search Console site verification meta tag"
+      },
+      {
+        "type": "added",
+        "text": "**demo:** add static prerendering (SSG) and full SEO metadata"
+      },
+      {
+        "type": "added",
+        "text": "enhance header component with live GitHub star count and update repository link"
+      },
+      {
+        "type": "added",
+        "text": "enhance install tabs component with animated slider and improved styles"
+      }
+    ]
+  },
+  {
     "version": "0.2.0",
     "date": "2026-06-10",
     "changes": [

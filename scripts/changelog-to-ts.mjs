@@ -84,7 +84,9 @@ export const releases: Release[] = ${body}
 `
 }
 
-const md = readFileSync(SRC, 'utf8')
+// Normalize CRLF → LF so the line-anchored regexes work on Windows checkouts
+// (JS `.` won't cross `\r`, so `(.+)$` would otherwise miss every CRLF bullet).
+const md = readFileSync(SRC, 'utf8').replace(/\r\n/g, '\n')
 const releases = parse(md)
 writeFileSync(OUT, emit(releases), 'utf8')
 console.log(`changelog-to-ts: wrote ${releases.length} releases → ${OUT}`)

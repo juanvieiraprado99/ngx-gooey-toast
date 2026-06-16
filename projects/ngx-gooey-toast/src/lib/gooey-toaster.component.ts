@@ -297,6 +297,11 @@ export class GooeyToasterComponent {
   private readonly mergePaths = viewChildren<ElementRef<SVGPathElement>>('mergePath')
   private readonly mergeSvgRef = viewChild<ElementRef<SVGSVGElement>>('mergeSvg')
   private rafId: number | null = null
+  /** Last `d`/`transform` written per merge path — skip rAF writes that don't change. */
+  private readonly lastMergeWrites = new WeakMap<
+    SVGPathElement,
+    { d: string; transform: string }
+  >()
 
   // Screen-reader announcement mirrors
   readonly politeMessage = signal('')
@@ -455,8 +460,11 @@ export class GooeyToasterComponent {
     }
 
     for (const w of writes) {
+      const prev = this.lastMergeWrites.get(w.el)
+      if (prev && prev.d === w.d && prev.transform === w.transform) continue
       w.el.setAttribute('d', w.d)
       w.el.setAttribute('transform', w.transform)
+      this.lastMergeWrites.set(w.el, { d: w.d, transform: w.transform })
     }
   }
 

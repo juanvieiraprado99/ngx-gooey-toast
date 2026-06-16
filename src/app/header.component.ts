@@ -246,6 +246,19 @@ interface NavAnchor {
         display: none;
       }
     }
+    /* On phones, hide the jump-link nav so the island stays one short row
+       (logo + GitHub/npm icons) instead of wrapping into a tall blob. */
+    @media (max-width: 640px) {
+      .nav {
+        display: none;
+      }
+      .island {
+        flex-wrap: nowrap;
+      }
+      .actions {
+        margin-left: auto;
+      }
+    }
   `,
 })
 export class HeaderComponent {
@@ -300,7 +313,18 @@ export class HeaderComponent {
   }
 
   protected onScroll(): void {
-    const next = window.scrollY > 8
+    // Mobile: header stays a static top bar — never morph to the pill island.
+    if (typeof matchMedia === 'function' && matchMedia('(max-width: 640px)').matches) {
+      if (this.morph() !== 0) {
+        this.anim?.stop()
+        this.morph.set(0)
+      }
+      this.scrolled = false
+      return
+    }
+    // Desktop: hysteresis — enter pill above 40px, exit only below 8px; hold between.
+    const y = window.scrollY
+    const next = this.scrolled ? y > 8 : y > 40
     if (next === this.scrolled) return
     this.scrolled = next
     const target = next ? 1 : 0

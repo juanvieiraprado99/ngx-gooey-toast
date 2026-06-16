@@ -1,48 +1,88 @@
 name: Release
 
-# Fires when a version tag is pushed (created locally by `npm run release`):
-#   npm run release            # bumps lib version, regenerates CHANGELOG.md, commits, tags
-#   git push --follow-tags origin main
+# Fires on every push to main. The release is driven by the LIB version in
+# projects/ngx-gooey-toast/package.json: when that version doesn't yet have a
+# matching `vX.Y.Z` tag, this builds the lib, tags the commit, and cuts a GitHub
+# Release whose body is the matching section of CHANGELOG.md. Commits that don't
+# bump the version are a no-op (the tag already exists), so normal pushes to main
+# never create a release.
+#
+# To cut a release: bump the version in projects/ngx-gooey-toast/package.json,
+# add the matching CHANGELOG.md section, commit, and push to main.
 on:
   push:
-    tags:
-      - 'v*'
+    branches:
+      - main
 
 permissions:
   contents: write
+
+# Never run two releases at once; let an in-flight run finish (don't cancel it).
+concurrency:
+  group: release
+  cancel-in-progress: false
 
 jobs:
   release:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
+        with:
+          # Full history + tags so we can tell whether this version already shipped.
+          fetch-depth: 0
+
+      - name: Read library version
+        id: ver
+        run: echo "version=$(node -p "require('./projects/ngx-gooey-toast/package.json').version")" >> "$GITHUB_OUTPUT"
+
+      - name: Check whether this version is already tagged
+        id: check
+        env:
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: |
+          if git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null; then
+            echo "exists=true" >> "$GITHUB_OUTPUT"
+            echo "v$VERSION already released — skipping."
+          else
+            echo "exists=false" >> "$GITHUB_OUTPUT"
+            echo "v$VERSION is new — releasing."
+          fi
 
       - uses: actions/setup-node@v4
+        if: steps.check.outputs.exists == 'false'
         with:
           node-version: 22
           cache: npm
           registry-url: https://registry.npmjs.org
 
-      - run: npm ci
+      - name: Install dependencies
+        if: steps.check.outputs.exists == 'false'
+        run: npm ci
 
       - name: Build library
+        if: steps.check.outputs.exists == 'false'
         run: npm run build:lib
 
-      # Pass the tag via env (not inline ${{ }} interpolation) — tag names may
-      # contain shell metacharacters, which would otherwise inject into `run:`.
+      # Pass the version via env (not inline ${{ }} interpolation) so it can't
+      # inject into the shell, mirroring the original tag-based workflow.
       - name: Extract release notes
+        if: steps.check.outputs.exists == 'false'
         env:
-          TAG: ${{ github.ref_name }}
-        run: node scripts/extract-release-notes.mjs "$TAG" > RELEASE_NOTES.md
+          VERSION: ${{ steps.ver.outputs.version }}
+        run: node scripts/extract-release-notes.mjs "v$VERSION" > RELEASE_NOTES.md
 
       - name: Create GitHub Release
+        if: steps.check.outputs.exists == 'false'
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
-          name: ${{ github.ref_name }}
+          tag_name: v${{ steps.ver.outputs.version }}
+          target_commitish: ${{ github.sha }}
+          name: v${{ steps.ver.outputs.version }}
           body_path: RELEASE_NOTES.md
 
       # Uncomment to also publish to npm (requires the NPM_TOKEN repo secret).
       # - name: Publish to npm
+      #   if: steps.check.outputs.exists == 'false'
       #   run: npm publish ./dist/ngx-gooey-toast --access public
       #   env:
       #     NODE_AUTH_TOKEN: ${{ secrets.NPM_TOKEN }}

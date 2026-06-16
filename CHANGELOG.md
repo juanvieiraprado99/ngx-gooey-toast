@@ -4,6 +4,19 @@ All notable changes to this project are documented here. This file is generated
 from [Conventional Commit](https://www.conventionalcommits.org/) messages by
 `commit-and-tag-version` — do not edit it by hand.
 
+## [0.2.1] (2026-06-15)
+
+### Bug Fixes
+
+* replay now reflects an in-place `update()` instead of re-showing the original toast
+* markdown emphasis only renders when the `*`/`_` open and close delimiters match
+
+### Performance Improvements
+
+* cache static content padding so `measure()` skips repeated `getComputedStyle`
+* dirty-check the metaball merge loop, skipping unchanged per-frame path writes
+* share a single `lerpDims` helper across the morph/resize animations
+
 ## 0.2.0 (2026-06-15)
 
 

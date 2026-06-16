@@ -69,6 +69,15 @@ interface Dims {
   th: number
 }
 
+/** Per-component linear interpolation of the three blob dimensions (pill→blob). */
+export function lerpDims(a: Dims, b: Dims, t: number): Dims {
+  return {
+    pw: a.pw + (b.pw - a.pw) * t,
+    bw: a.bw + (b.bw - a.bw) * t,
+    th: a.th + (b.th - a.th) * t,
+  }
+}
+
 /**
  * The morphing pill → blob toast. Ported from React `GooeyToast.tsx`.
  *
@@ -425,6 +434,8 @@ export class GooeyToastComponent implements OnDestroy {
   private swipeCtrl: AnimationController | null = null
   private resizeObs: ResizeObserver | null = null
   private leaving = false
+  /** Static horizontal content padding (fixed in CSS) — read once, then reused. */
+  private contentPadX: number | null = null
 
   private readonly prefersReducedMotion = signal(false)
 
@@ -750,8 +761,11 @@ export class GooeyToastComponent implements OnDestroy {
     content.style.maxHeight = ''
     content.style.width = ''
 
-    const cs = getComputedStyle(content)
-    const paddingX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight)
+    if (this.contentPadX == null) {
+      const cs = getComputedStyle(content)
+      this.contentPadX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight)
+    }
+    const paddingX = this.contentPadX
     const pw = header.offsetWidth + paddingX
     const bw = content.offsetWidth
     const th = content.offsetHeight
@@ -815,11 +829,7 @@ export class GooeyToastComponent implements OnDestroy {
         ? { type: 'spring', duration: 0.5 * s, bounce: bounce * 0.875 }
         : { duration: 0.4 * s, ease: SMOOTH_EASE }),
       onUpdate: (t) => {
-        this.aDims = {
-          pw: prev.pw + (target.pw - prev.pw) * t,
-          bw: prev.bw + (target.bw - prev.bw) * t,
-          th: prev.th + (target.th - prev.th) * t,
-        }
+        this.aDims = lerpDims(prev, target, t)
         this.flush()
       },
     })
@@ -1000,11 +1010,7 @@ export class GooeyToastComponent implements OnDestroy {
         ...collapseTransition,
         onUpdate: (t) => {
           this.morphT = t
-          this.aDims = {
-            pw: targetDims.pw + (savedDims.pw - targetDims.pw) * t,
-            bw: targetDims.bw + (savedDims.bw - targetDims.bw) * t,
-            th: targetDims.th + (savedDims.th - targetDims.th) * t,
-          }
+          this.aDims = lerpDims(targetDims, savedDims, t)
           this.flush()
         },
         onComplete: () => {
@@ -1098,11 +1104,7 @@ export class GooeyToastComponent implements OnDestroy {
         onUpdate: (t) => {
           this.morphT = t
           const target = this.dimsRef
-          this.aDims = {
-            pw: startDims.pw + (target.pw - startDims.pw) * t,
-            bw: startDims.bw + (target.bw - startDims.bw) * t,
-            th: startDims.th + (target.th - startDims.th) * t,
-          }
+          this.aDims = lerpDims(startDims, target, t)
           this.flush()
         },
         onComplete: () => {
@@ -1171,11 +1173,7 @@ export class GooeyToastComponent implements OnDestroy {
         onUpdate: (t) => {
           this.morphT = t
           const target = this.dimsRef
-          this.aDims = {
-            pw: startDims.pw + (target.pw - startDims.pw) * t,
-            bw: startDims.bw + (target.bw - startDims.bw) * t,
-            th: startDims.th + (target.th - startDims.th) * t,
-          }
+          this.aDims = lerpDims(startDims, target, t)
           this.flush()
         },
         onComplete: () => {

@@ -4,6 +4,18 @@ All notable changes to this project are documented here. This file is generated
 from [Conventional Commit](https://www.conventionalcommits.org/) messages by
 `commit-and-tag-version` — do not edit it by hand.
 
+## [0.3.0](https://github.com/juanvieiraprado99/ngx-gooey-toast/compare/v0.2.1...v0.3.0) (2026-06-19)
+
+
+### Features
+
+* **toast:** add loading(), cancel button and mutable duration ([f28241f](https://github.com/juanvieiraprado99/ngx-gooey-toast/commit/f28241f217fdb28476e4ee4eaefc3780185e91a6))
+
+
+### Bug Fixes
+
+* **toast:** sync the progress bar with the auto-dismiss timer ([f650236](https://github.com/juanvieiraprado99/ngx-gooey-toast/commit/f650236bbab8c4ada96e6fbcd2821e7675e92293))
+
 ## [0.2.1] (2026-06-15)
 
 ### Bug Fixes

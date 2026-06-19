@@ -10,6 +10,15 @@
     "signals"
   ],
   "license": "MIT",
+  "author": "Juan Prado <juanprado99@gmail.com>",
+  "homepage": "https://github.com/juanvieiraprado99/ngx-gooey-toast#readme",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/juanvieiraprado99/ngx-gooey-toast.git"
+  },
+  "bugs": {
+    "url": "https://github.com/juanvieiraprado99/ngx-gooey-toast/issues"
+  },
   "sideEffects": false,
   "peerDependencies": {
     "@angular/common": "^21.0.0",

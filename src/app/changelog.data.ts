@@ -16,6 +16,20 @@ export interface Release {
 
 export const releases: Release[] = [
   {
+    "version": "0.3.0",
+    "date": "2026-06-19",
+    "changes": [
+      {
+        "type": "added",
+        "text": "**toast:** add loading(), cancel button and mutable duration"
+      },
+      {
+        "type": "fixed",
+        "text": "**toast:** sync the progress bar with the auto-dismiss timer"
+      }
+    ]
+  },
+  {
     "version": "0.2.1",
     "date": "2026-06-15",
     "changes": [

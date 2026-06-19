@@ -8,6 +8,7 @@ import type {
   GooeyPosition,
   GooeyPromiseData,
   GooeyToastAction,
+  GooeyToastCancel,
   GooeyToastClassNames,
   GooeyToastOptions,
   GooeyToastPhase,
@@ -51,6 +52,7 @@ export interface GooeyToastEntry {
   readonly phase: WritableSignal<GooeyToastPhase>
   readonly description: WritableSignal<GooeyContent | undefined>
   readonly action: WritableSignal<GooeyToastAction | undefined>
+  readonly cancel: WritableSignal<GooeyToastCancel | undefined>
   readonly icon: WritableSignal<GooeyContent | undefined>
   readonly showTimestamp: WritableSignal<boolean>
   /** How many identical toasts have coalesced into this one (1 = no dupes). */
@@ -68,8 +70,11 @@ export interface GooeyToastEntry {
   readonly spring?: boolean
   readonly bounce?: number
   readonly showProgress?: boolean
-  /** Auto-dismiss duration (ms) for the settled state. Infinity = stay open. */
-  readonly duration: number
+  /**
+   * Auto-dismiss duration (ms). Infinity = stay open. A signal so `update()`
+   * and `promise()` settle can re-arm the timers in place (E8/E14 track it).
+   */
+  readonly duration: WritableSignal<number>
   readonly createdAt: Date
   readonly onDismiss?: (id: string | number) => void
   readonly onAutoClose?: (id: string | number) => void
@@ -176,6 +181,31 @@ export class GooeyToastService {
   }
 
   /**
+   * Show a standalone loading toast (spinner icon, stays open by default).
+   * Resolve it later with `update(id, { type, title, duration })` — e.g. flip to
+   * `success` with a finite `duration` so it auto-closes. Defaults to
+   * `duration: Infinity` and `coalesce: false` (so it isn't merged before you
+   * update it). For a one-call flow prefer `promise()`.
+   * @returns The toast id.
+   * @example
+   * const id = toast.loading('Uploading…')
+   * // later…
+   * toast.update(id, { type: 'success', title: 'Uploaded', duration: 4000 })
+   */
+  loading(title: string, options?: GooeyToastOptions): string | number {
+    return this.create(
+      title,
+      'info',
+      {
+        ...options,
+        duration: options?.duration ?? Number.POSITIVE_INFINITY,
+        coalesce: options?.coalesce ?? false,
+      },
+      'loading',
+    )
+  }
+
+  /**
    * Track a promise in one toast: `loading` → `success`/`error` in place.
    * `success`/`error` may be a string or a function of the resolved value/error.
    * @returns The toast id.
@@ -205,11 +235,14 @@ export class GooeyToastService {
       showTimestamp: data.showTimestamp,
       onDismiss: data.onDismiss,
       onAutoClose: data.onAutoClose,
-      // Stay open while loading (the component's auto-dismiss timer is guarded
-      // by phase === 'loading'); once the promise settles a finite duration
-      // lets a simple (no-description) result toast auto-close.
-      duration: data.timing?.displayDuration ?? this.defaultDuration(),
+      // Stay open while loading — Infinity arms neither auto-dismiss path (E14
+      // guards on phase, but an expanded loading toast with a description would
+      // otherwise collapse via E8 on the default duration). On settle we set a
+      // finite duration so the result toast auto-closes.
+      duration: Number.POSITIVE_INFINITY,
     })
+    // Duration applied to the settled (success/error) toast.
+    const settleDuration = data.timing?.displayDuration ?? this.defaultDuration()
 
     this.announce(this.message(data.loading, data.description?.loading), 'polite')
     this.push(entry)
@@ -227,6 +260,7 @@ export class GooeyToastService {
         entry.action.set(data.action?.success)
         entry.type.set('success')
         entry.phase.set('success')
+        entry.duration.set(settleDuration)
         this.announce(this.message(title, desc), 'polite')
         this.triggerHaptic('success')
         // A promise can't be re-awaited; replay re-shows the settled toast.
@@ -246,6 +280,7 @@ export class GooeyToastService {
         entry.action.set(data.action?.error)
         entry.type.set('error')
         entry.phase.set('error')
+        entry.duration.set(settleDuration)
         this.announce(this.message(title, desc), 'assertive')
         this.triggerHaptic('error')
         this.replayFns.set(id, () =>
@@ -281,8 +316,11 @@ export class GooeyToastService {
       entry.phase.set(options.type)
     }
     if (options.action !== undefined) entry.action.set(options.action)
+    if ('cancel' in options) entry.cancel.set(options.cancel ?? undefined)
     if ('icon' in options) entry.icon.set(options.icon ?? undefined)
     if (options.showTimestamp !== undefined) entry.showTimestamp.set(options.showTimestamp)
+    // Mutable duration: re-arm the auto-dismiss timers (E8/E14 track it).
+    if (options.duration !== undefined) entry.duration.set(options.duration)
     // Announce when the title OR description changed so SR users hear in-place
     // updates that don't touch the title (e.g. a description- or type-only update).
     if (options.title !== undefined || options.description !== undefined) {
@@ -426,6 +464,7 @@ export class GooeyToastService {
     title: string,
     type: GooeyToastType,
     options?: GooeyToastOptions,
+    phase: GooeyToastPhase = type,
   ): string | number {
     const id = options?.id ?? this.genId()
 
@@ -459,9 +498,10 @@ export class GooeyToastService {
       id,
       title,
       type,
-      phase: type,
+      phase,
       description: options?.description,
       action: options?.action,
+      cancel: options?.cancel,
       icon: options?.icon,
       classNames: options?.classNames,
       fillColor: options?.fillColor,
@@ -492,6 +532,7 @@ export class GooeyToastService {
     return this.create(entry.title(), entry.type(), {
       description: entry.description(),
       action: entry.action(),
+      cancel: entry.cancel(),
       icon: entry.icon(),
       classNames: entry.classNames,
       fillColor: entry.fillColor,
@@ -503,7 +544,7 @@ export class GooeyToastService {
       bounce: entry.bounce,
       showProgress: entry.showProgress,
       showTimestamp: entry.showTimestamp(),
-      duration: entry.duration,
+      duration: entry.duration(),
       onDismiss: entry.onDismiss,
       onAutoClose: entry.onAutoClose,
     })
@@ -516,6 +557,7 @@ export class GooeyToastService {
     phase: GooeyToastPhase
     description?: GooeyContent
     action?: GooeyToastAction
+    cancel?: GooeyToastCancel
     icon?: GooeyContent
     classNames?: GooeyToastClassNames
     fillColor?: string
@@ -538,6 +580,7 @@ export class GooeyToastService {
       phase: signal(init.phase),
       description: signal(init.description),
       action: signal(init.action),
+      cancel: signal(init.cancel),
       icon: signal(init.icon),
       showTimestamp: signal(init.showTimestamp ?? true),
       count: signal(1),
@@ -552,7 +595,7 @@ export class GooeyToastService {
       spring: init.spring,
       bounce: init.bounce,
       showProgress: init.showProgress,
-      duration: init.duration,
+      duration: signal(init.duration),
       createdAt: new Date(),
       onDismiss: init.onDismiss,
       onAutoClose: init.onAutoClose,

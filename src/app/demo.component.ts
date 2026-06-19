@@ -237,6 +237,16 @@ export class DemoComponent {
               },
             }),
         },
+        {
+          label: 'Action + Cancel',
+          run: () =>
+            this.toast.warning('Delete file?', {
+              description: 'This action cannot be undone.',
+              duration: Number.POSITIVE_INFINITY,
+              action: { label: 'Delete', onClick: () => this.toast.success('Deleted') },
+              cancel: { label: 'Cancel' },
+            }),
+        },
       ],
     },
     {
@@ -317,6 +327,13 @@ export class DemoComponent {
       ],
     },
     {
+      heading: 'Loading',
+      items: [
+        { label: 'Loading → Success', run: () => this.runLoading(false) },
+        { label: 'Loading → Error', run: () => this.runLoading(true) },
+      ],
+    },
+    {
       heading: 'Update Toast',
       items: [
         { label: 'Update → Success', run: () => this.runUpdate() },
@@ -392,5 +409,15 @@ export class DemoComponent {
         ? { title: 'Connection failed', type: 'error' as const }
         : { title: 'Connected', type: 'success' as const }
     setTimeout(() => this.toast.update(id, next), 2000)
+  }
+
+  protected runLoading(fail: boolean): void {
+    // Sticky spinner you resolve yourself; give it a finite duration on resolve
+    // so the settled result auto-closes.
+    const id = this.toast.loading('Uploading…')
+    const next = fail
+      ? { title: 'Upload failed', type: 'error' as const, duration: 4000 }
+      : { title: 'Uploaded report.pdf', type: 'success' as const, duration: 4000 }
+    setTimeout(() => this.toast.update(id, next), 2200)
   }
 }

@@ -26,6 +26,7 @@ export {
   type AnimationPresetName,
   type DismissFilter,
   type GooeyContent,
+  type GooeyToastCancel,
   type GooeyHistoryRecord,
   type GooeyRichContent,
   type GooeyPosition,

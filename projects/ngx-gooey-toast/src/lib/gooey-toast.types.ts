@@ -56,9 +56,20 @@ export interface GooeyToastAction {
   successLabel?: string
 }
 
+/**
+ * Secondary "cancel" button shown next to the action. Clicking it dismisses the
+ * toast; `onClick` (optional) runs first.
+ */
+export interface GooeyToastCancel {
+  label: string
+  onClick?: () => void
+}
+
 export interface GooeyToastOptions {
   description?: GooeyContent
   action?: GooeyToastAction
+  /** Secondary cancel button (rendered next to `action`); dismisses on click. */
+  cancel?: GooeyToastCancel
   icon?: GooeyContent
   duration?: number
   id?: string | number
@@ -119,8 +130,15 @@ export interface GooeyToastUpdateOptions {
   description?: GooeyContent
   type?: GooeyToastType
   action?: GooeyToastAction
+  /** Replace (or, with `null`, clear) the secondary cancel button. */
+  cancel?: GooeyToastCancel | null
   icon?: GooeyContent | null
   showTimestamp?: boolean
+  /**
+   * New auto-dismiss duration (ms) for the (now mutable) timer. `Infinity` keeps
+   * the toast open; a finite value re-arms the countdown from now.
+   */
+  duration?: number
 }
 
 export interface DismissFilter {

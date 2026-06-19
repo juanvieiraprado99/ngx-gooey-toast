@@ -259,6 +259,26 @@ toast.success('Synced', {
 })`,
     },
     {
+      title: 'Action + cancel',
+      blurb: 'A secondary cancel button sits beside the action and dismisses on click.',
+      code: `toast.warning('Delete file?', {
+  duration: Infinity,
+  action: { label: 'Delete', onClick: () => remove() },
+  cancel: { label: 'Cancel' },
+})`,
+    },
+    {
+      title: 'Loading → resolve',
+      blurb: 'A sticky spinner you resolve yourself; give it a finite duration to auto-close.',
+      code: `const id = toast.loading('Uploading…')
+// later…
+toast.update(id, {
+  type: 'success',
+  title: 'Uploaded',
+  duration: 4000,
+})`,
+    },
+    {
       title: 'Promise',
       blurb: 'Loading → success/error, resolved in place from a promise.',
       code: `toast.promise(uploadFile(), {
@@ -344,6 +364,7 @@ toast.info('Custom spring', { spring: true, bounce: 0.5 })`,
   protected readonly toastOptions: PropRow[] = [
     { name: 'description', type: 'string | TemplateRef | { html } | { markdown }', default: '', description: 'Body below the title. Plain string = text; { html } / { markdown } render sanitized rich content (scripts & handlers stripped); TemplateRef for full Angular content.' },
     { name: 'action', type: 'GooeyToastAction', default: '', description: '{ label, onClick, successLabel? } action button.' },
+    { name: 'cancel', type: 'GooeyToastCancel', default: '', description: '{ label, onClick? } secondary cancel button; dismisses the toast on click.' },
     { name: 'icon', type: 'string | TemplateRef', default: '', description: 'Custom leading icon.' },
     { name: 'duration', type: 'number', default: '', description: 'Override auto-dismiss time (ms) for this toast.' },
     { name: 'id', type: 'string | number', default: '', description: 'Provide a stable id (e.g. to update later).' },
@@ -365,8 +386,9 @@ toast.info('Custom spring', { spring: true, bounce: 0.5 })`,
     { signature: 'error(title, options?)', returns: 'string | number', description: 'Error toast (assertive, shakes on entry).' },
     { signature: 'warning(title, options?)', returns: 'string | number', description: 'Warning toast (assertive).' },
     { signature: 'info(title, options?)', returns: 'string | number', description: 'Info toast.' },
+    { signature: 'loading(title, options?)', returns: 'string | number', description: 'Sticky loading toast (Infinity duration by default); resolve later with update().' },
     { signature: 'promise(promise, data)', returns: 'string | number', description: 'Loading → success/error from a promise.' },
-    { signature: 'update(id, options)', returns: 'void', description: 'Mutate a live toast in place.' },
+    { signature: 'update(id, options)', returns: 'void', description: 'Mutate a live toast in place (title, type, duration, cancel, icon…).' },
     { signature: 'dismiss(idOrFilter?)', returns: 'void', description: 'Dismiss by id, by { type } filter, or all.' },
     { signature: 'history()', returns: 'GooeyHistoryRecord[]', description: 'Dismissed toasts kept for replay (newest first; in-memory).' },
     { signature: 'replay(id)', returns: 'string | number | undefined', description: 'Re-fire a dismissed toast as a fresh one. Faithful (callbacks/colors/rich preserved).' },

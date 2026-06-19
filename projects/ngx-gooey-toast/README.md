@@ -100,13 +100,34 @@ this.toast.promise(this.api.save(form), {
 })
 ```
 
+### Loading → resolve
+
+```ts
+const id = this.toast.loading('Uploading…')      // sticky spinner (no auto-close)
+// later…
+this.toast.update(id, { type: 'success', title: 'Uploaded', duration: 4000 })
+```
+
+For a one-call flow use `promise()`; reach for `loading()` when you resolve the
+toast yourself across several steps.
+
+### Confirm with a cancel button
+
+```ts
+this.toast.warning('Delete file?', {
+  duration: Infinity,
+  action: { label: 'Delete', onClick: () => this.remove() },
+  cancel: { label: 'Cancel' }, // dismisses on click (onClick optional)
+})
+```
+
 ### Update in place
 
 ```ts
 // Opt out of coalescing for toasts you keep the id of and update later.
 const id = this.toast.info('Connecting…', { coalesce: false })
-// later…
-this.toast.update(id, { title: 'Connected', type: 'success' })
+// later… (duration is mutable too — re-arms the auto-dismiss timer)
+this.toast.update(id, { title: 'Connected', type: 'success', duration: 4000 })
 ```
 
 ### Dismiss
@@ -149,6 +170,7 @@ this.toast.dismiss()                   // everything
 | --- | --- | --- |
 | `description` | `string \| TemplateRef \| { html } \| { markdown }` | Rich content is sanitized. |
 | `action` | `{ label, onClick, successLabel? }` | Action button. |
+| `cancel` | `{ label, onClick? }` | Secondary cancel button; dismisses on click. |
 | `icon` | `GooeyContent` | Override the type icon. |
 | `duration` | `number` | Auto-dismiss override (`Infinity` = stay open). |
 | `id` | `string \| number` | Provide your own id (also enables `update()`). |
@@ -167,8 +189,9 @@ All create methods return the toast id (`string | number`).
 | --- | --- |
 | `show(title, options?)` | Default toast. |
 | `success / error / warning / info(title, options?)` | Typed toasts. |
+| `loading(title, options?)` | Sticky loading toast (resolve later with `update()`). |
 | `promise(promise, data)` | Loading → success/error in place. |
-| `update(id, options)` | Mutate a live toast. |
+| `update(id, options)` | Mutate a live toast (title, type, `duration`, `cancel`…). |
 | `dismiss(id \| filter?)` | Dismiss one / by type / all. |
 | `replay(id)` | Re-fire a dismissed toast. |
 | `clearHistory()` | Clear the dismissed-toast history. |
@@ -253,8 +276,9 @@ export class DemoComponent {
 ### Principais métodos
 
 - `show / success / error / warning / info(title, options?)` — cria um toast (retorna o id).
+- `loading(title, options?)` — toast de carregamento fixo (resolva depois com `update()`).
 - `promise(promise, data)` — loading → sucesso/erro no mesmo toast.
-- `update(id, options)` — altera um toast vivo (use `coalesce: false` ao criar).
+- `update(id, options)` — altera um toast vivo (título, tipo, `duration`, `cancel`…; use `coalesce: false` ao criar).
 - `dismiss(id | { type } )` — fecha um, por tipo, ou todos (`dismiss()`).
 
 ### Acessibilidade

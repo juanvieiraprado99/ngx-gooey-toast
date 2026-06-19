@@ -317,16 +317,22 @@ describe('GooeyToastService', () => {
     expect(s.replay(live)).toBeDefined() // still on screen
   })
 
-  it('promise toast has a finite duration so a simple settled result auto-closes', () => {
+  it('promise stays open while loading, then gets a finite settled duration', async () => {
     const s = new GooeyToastService()
-    const id = s.promise(Promise.resolve(), {
+    const p = Promise.resolve()
+    const id = s.promise(p, {
       loading: 'Saving',
       success: 'Saved',
       error: 'Failed',
     })
     const entry = s.toasts().find((t) => t.id === id)!
-    // Regression: was Number.POSITIVE_INFINITY → a no-description result never dismissed.
-    expect(Number.isFinite(entry.duration)).toBe(true)
+    // While loading: Infinity so an expanded loading toast can't collapse early.
+    expect(entry.duration()).toBe(Number.POSITIVE_INFINITY)
+    await p
+    await Promise.resolve() // let the service's .then microtask run
+    // On settle: finite, so a no-description result auto-closes.
+    expect(entry.phase()).toBe('success')
+    expect(Number.isFinite(entry.duration())).toBe(true)
   })
 
   it('update() mutates the entry in place', () => {
@@ -339,12 +345,52 @@ describe('GooeyToastService', () => {
     expect(entry.phase()).toBe('success')
   })
 
+  it('loading() creates a sticky (Infinity-duration) loading toast', () => {
+    const s = new GooeyToastService()
+    const id = s.loading('Uploading')
+    const entry = s.toasts().find((t) => t.id === id)!
+    expect(entry.phase()).toBe('loading')
+    expect(entry.duration()).toBe(Number.POSITIVE_INFINITY)
+    // Resolve it later, giving it a finite duration so it auto-closes.
+    s.update(id, { type: 'success', title: 'Uploaded', duration: 4000 })
+    expect(entry.phase()).toBe('success')
+    expect(entry.duration()).toBe(4000)
+  })
+
+  it('loading() honors an explicit duration override', () => {
+    const s = new GooeyToastService()
+    const id = s.loading('Working', { duration: 2000 })
+    expect(s.toasts().find((t) => t.id === id)!.duration()).toBe(2000)
+  })
+
+  it('update() can change the (mutable) duration', () => {
+    const s = new GooeyToastService()
+    const id = s.info('a', { duration: 5000 })
+    const entry = s.toasts().find((t) => t.id === id)!
+    s.update(id, { duration: Number.POSITIVE_INFINITY })
+    expect(entry.duration()).toBe(Number.POSITIVE_INFINITY)
+    s.update(id, { duration: 1000 })
+    expect(entry.duration()).toBe(1000)
+  })
+
+  it('cancel option is stored on the entry and clearable via update(null)', () => {
+    const s = new GooeyToastService()
+    const id = s.error('Delete?', {
+      action: { label: 'Confirm', onClick: () => {} },
+      cancel: { label: 'Cancel', onClick: () => {} },
+    })
+    const entry = s.toasts().find((t) => t.id === id)!
+    expect(entry.cancel()?.label).toBe('Cancel')
+    s.update(id, { cancel: null })
+    expect(entry.cancel()).toBeUndefined()
+  })
+
   it('options.duration flows into entry.duration (used by ALL dismiss timers)', () => {
     const s = new GooeyToastService()
     const id = s.success('slow', { duration: 10000, description: 'body' })
-    expect(s.toasts().find((t) => t.id === id)!.duration).toBe(10000)
+    expect(s.toasts().find((t) => t.id === id)!.duration()).toBe(10000)
     const sticky = s.info('sticky', { duration: Number.POSITIVE_INFINITY })
-    expect(s.toasts().find((t) => t.id === sticky)!.duration).toBe(
+    expect(s.toasts().find((t) => t.id === sticky)!.duration()).toBe(
       Number.POSITIVE_INFINITY,
     )
   })
@@ -354,8 +400,8 @@ describe('GooeyToastService', () => {
     s.defaultDuration.set(9000)
     const plain = s.info('a')
     const explicit = s.info('b', { duration: 1000 })
-    expect(s.toasts().find((t) => t.id === plain)!.duration).toBe(9000)
-    expect(s.toasts().find((t) => t.id === explicit)!.duration).toBe(1000)
+    expect(s.toasts().find((t) => t.id === plain)!.duration()).toBe(9000)
+    expect(s.toasts().find((t) => t.id === explicit)!.duration()).toBe(1000)
   })
 
   it('coalesces against queued (overflowed) toasts too', () => {

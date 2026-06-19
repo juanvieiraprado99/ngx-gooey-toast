@@ -31,15 +31,18 @@ import {
   type DismissReason,
   type GooeyToastEntry,
 } from './gooey-toast.service'
-import { animationPresets as PRESETS, DEFAULT_DISPLAY_DURATION } from './gooey-toast.types'
+import { animationPresets as PRESETS } from './gooey-toast.types'
 import type {
   GooeyContent,
   GooeyToastAction,
+  GooeyToastCancel,
   GooeyToastPhase,
 } from './gooey-toast.types'
 
 const DEFAULT_EXPAND_DUR = 0.6
 const DEFAULT_COLLAPSE_DUR = 0.9
+/** Grace (ms) a collapsed-to-pill toast waits before its exit, after auto-dismiss. */
+const LEAVE_AFTER_COLLAPSE_MS = 200
 const SMOOTH_EASE: Easing = [0.4, 0, 0.2, 1]
 
 /** Rubber-band resistance past the threshold so the swipe drag feels elastic. */
@@ -183,6 +186,7 @@ export function lerpDims(a: Dims, b: Dims, t: number): Dims {
           @if (
             !hasDescription() &&
             !hasAction() &&
+            !hasCancel() &&
             !actionSuccess() &&
             effectiveShowTimestamp()
           ) {
@@ -212,37 +216,48 @@ export function lerpDims(a: Dims, b: Dims, t: number): Dims {
         @if (
           showBody() &&
           !hasDescription() &&
-          hasAction() &&
+          (hasAction() || hasCancel()) &&
           effectiveShowTimestamp()
         ) {
           <div class="timestamp timestamp-line">{{ timestamp() }}</div>
         }
 
-        @if (showBody() && hasAction() && effectiveAction()) {
+        @if (showBody() && (hasAction() || hasCancel())) {
           <div class="action" [class]="cn()?.actionWrapper">
-            <button
-              class="action-btn"
-              [class]="cn()?.actionButton"
-              type="button"
-              [attr.data-phase]="effectivePhase()"
-              [attr.aria-label]="effectiveAction()!.label"
-              (click)="onActionClick()"
-            >
-              {{ effectiveAction()!.label }}
-            </button>
+            @if (hasAction() && effectiveAction()) {
+              <button
+                class="action-btn"
+                [class]="cn()?.actionButton"
+                type="button"
+                [attr.data-phase]="effectivePhase()"
+                [attr.aria-label]="effectiveAction()!.label"
+                (click)="onActionClick()"
+              >
+                {{ effectiveAction()!.label }}
+              </button>
+            }
+            @if (hasCancel() && effectiveCancel()) {
+              <button
+                class="action-btn cancel-btn"
+                type="button"
+                [attr.aria-label]="effectiveCancel()!.label"
+                (click)="onCancelClick()"
+              >
+                {{ effectiveCancel()!.label }}
+              </button>
+            }
           </div>
         }
 
         @if (showProgress()) {
           <div
             class="progress"
-            [class.paused]="hovered() || containerHovered()"
             [style.opacity]="showBody() && !actionSuccess() ? 1 : 0"
           >
             <div
+              #progressBar
               class="progress-bar"
               [attr.data-phase]="effectivePhase()"
-              [style.--gooey-progress-duration]="progressDurationStr()"
             ></div>
           </div>
         }
@@ -265,6 +280,7 @@ export class GooeyToastComponent implements OnDestroy {
   private readonly headerRef = viewChild<ElementRef<HTMLDivElement>>('header')
   private readonly iconRef = viewChild<ElementRef<HTMLElement>>('iconEl')
   private readonly contentRef = viewChild<ElementRef<HTMLDivElement>>('content')
+  private readonly progressBarRef = viewChild<ElementRef<HTMLDivElement>>('progressBar')
 
   // --- Entry-derived reactive state ---------------------------------------
   private readonly title = computed(() => this.entry().title())
@@ -366,13 +382,19 @@ export class GooeyToastComponent implements OnDestroy {
   readonly customIcon = computed<GooeyContent | undefined>(() =>
     this.actionSuccess() ? undefined : this.customIconRaw(),
   )
+  readonly effectiveCancel = computed<GooeyToastCancel | undefined>(() =>
+    this.actionSuccess() ? undefined : this.entry().cancel(),
+  )
+  readonly hasCancel = computed(() => Boolean(this.effectiveCancel()))
   private readonly isLoading = computed(() => this.effectivePhase() === 'loading')
   readonly hasDescription = computed(() => Boolean(this.effectiveDescription()))
   readonly hasAction = computed(() => Boolean(this.effectiveAction()))
   readonly isExpanded = computed(
-    () => (this.hasDescription() || this.hasAction()) && !this.dismissing(),
+    () =>
+      (this.hasDescription() || this.hasAction() || this.hasCancel()) &&
+      !this.dismissing(),
   )
-  readonly effectiveShowTimestamp = computed(() => this.entryShowTimestamp())
+  readonly effectiveShowTimestamp = this.entryShowTimestamp
 
   /** Consumer-supplied extra classes per slot (static config on the entry). */
   readonly cn = computed(() => this.entry().classNames)
@@ -386,14 +408,6 @@ export class GooeyToastComponent implements OnDestroy {
   readonly iconKind = computed<GooeyIconKind>(() =>
     this.isLoading() ? 'spinner' : (this.effectivePhase() as GooeyIconKind),
   )
-  private readonly progressDelay = signal(0)
-  readonly progressDurationMs = computed(() => {
-    // entry.duration already unifies timing.displayDuration ?? duration ?? default.
-    const d = this.entry().duration
-    return this.progressDelay() || (Number.isFinite(d) ? d : DEFAULT_DISPLAY_DURATION)
-  })
-  readonly progressDurationStr = computed(() => `${this.progressDurationMs()}ms`)
-
   readonly timestamp = computed(() => formatTime(this.entry().createdAt))
   readonly isString = (v: unknown): v is string => typeof v === 'string'
 
@@ -420,12 +434,16 @@ export class GooeyToastComponent implements OnDestroy {
   private prevPhase: GooeyToastPhase = 'default'
   private remaining: number | null = null
   private timerStart = 0
+  /** Delay the running pre-dismiss (E8) timer was armed with — for pause banking. */
+  private preArmedDelay = 0
   private dismissTimer: ReturnType<typeof setTimeout> | null = null
   private leaveTimer: ReturnType<typeof setTimeout> | null = null
   private actionSuccessTimer: ReturnType<typeof setTimeout> | null = null
   private simpleTimer: ReturnType<typeof setTimeout> | null = null
   private simpleRemaining: number | null = null
   private simpleStart = 0
+  /** Delay the running simple (E14) timer was armed with — for pause banking. */
+  private simpleArmedDelay = 0
   private swipeStart: { x: number; y: number } | null = null
   private isSwiping = false
   private swipeAxis: 'x' | 'y' | null = null
@@ -533,6 +551,8 @@ export class GooeyToastComponent implements OnDestroy {
       const dismissing = this.dismissing()
       const hovered = this.hovered()
       const containerHovered = this.containerHovered()
+      // Track duration so a mutable change (update()/promise settle) re-arms.
+      this.entry().duration()
       untracked(() =>
         this.armPreDismiss(showBody, actionSuccess, dismissing, hovered, containerHovered),
       )
@@ -581,6 +601,8 @@ export class GooeyToastComponent implements OnDestroy {
       const actionSuccess = this.actionSuccess()
       const hovered = this.hovered()
       const containerHovered = this.containerHovered()
+      // Track duration so a mutable change (update()) re-arms the timer.
+      this.entry().duration()
       untracked(() =>
         this.armSimpleDismiss(isExpanded, phase, actionSuccess, hovered, containerHovered),
       )
@@ -1043,28 +1065,40 @@ export class GooeyToastComponent implements OnDestroy {
       clearTimeout(this.dismissTimer)
       this.dismissTimer = null
     }
-    if (!showBody || actionSuccess || dismissing) return
+    if (!showBody || actionSuccess || dismissing) {
+      this.driveProgress(0, false)
+      return
+    }
 
     // entry.duration unifies timing.displayDuration ?? duration ?? default —
     // previously only timing was read here, so `duration` was ignored for
     // expanded toasts. Infinity = sticky: never arm the collapse timer.
-    const displayMs = this.entry().duration
-    if (!Number.isFinite(displayMs)) return
+    const displayMs = this.entry().duration()
+    if (!Number.isFinite(displayMs)) {
+      this.driveProgress(0, false)
+      return
+    }
     const expandDelayMs = this.prefersReducedMotion() ? 0 : 330
     const collapseMs = this.prefersReducedMotion() ? 10 : DEFAULT_COLLAPSE_DUR * 1000
-    const fullDelay = displayMs - expandDelayMs - collapseMs
-    this.progressDelay.set(Math.max(fullDelay, 0))
+    const fullDelay = Math.max(displayMs - expandDelayMs - collapseMs, 0)
     if (fullDelay <= 0) return
-    if (hovered || containerHovered || this.hoveredRef) return
 
-    const delay = this.remaining ?? fullDelay
-    this.timerStart = Date.now()
-    this.dismissTimer = setTimeout(() => {
-      if (this.hoveredRef || this.containerHovered()) {
-        const elapsed = Date.now() - this.timerStart
-        this.remaining = Math.max(0, delay - elapsed)
-        return
+    // Hover/focus pauses: bank elapsed time and freeze the bar (don't restart).
+    if (hovered || containerHovered || this.hoveredRef) {
+      if (this.timerStart) {
+        this.remaining = Math.max(0, this.preArmedDelay - (Date.now() - this.timerStart))
       }
+      this.driveProgress(0, false)
+      return
+    }
+
+    const fresh = this.remaining == null
+    const delay = this.remaining ?? fullDelay
+    this.preArmedDelay = delay
+    this.timerStart = Date.now()
+    // Bar spans the timer delay only — it hits 0 when the collapse starts.
+    this.driveProgress(delay, true, fresh)
+    this.dismissTimer = setTimeout(() => {
       this.remaining = null
       this.expandedDims = { ...this.aDims }
       this.collapsing = true
@@ -1124,11 +1158,14 @@ export class GooeyToastComponent implements OnDestroy {
       this.leaveTimer = null
     }
     if (!dismissing || showBody) return
+    // Short grace after the collapse morph (which itself is a ~900ms hover-grab
+    // window via E9). Was 800ms — a dead "pill-sit" users read as lag after the
+    // progress bar already emptied.
     this.leaveTimer = setTimeout(() => {
       if (!this.hoveredRef && !this.containerHovered()) {
         this.leave('auto')
       }
-    }, 800)
+    }, LEAVE_AFTER_COLLAPSE_MS)
   }
 
   // ------------------------------------------- E11: leave after action success
@@ -1197,20 +1234,68 @@ export class GooeyToastComponent implements OnDestroy {
       clearTimeout(this.simpleTimer)
       this.simpleTimer = null
     }
-    if (isExpanded || phase === 'loading' || actionSuccess) return
-    const duration = this.entry().duration
-    if (!Number.isFinite(duration)) return
-    if (hovered || containerHovered || this.hoveredRef) return
+    // Toasts with body content are owned by the E8/E10 collapse path. During the
+    // collapse `isExpanded` flips false, which would otherwise wake this simple
+    // path and restart the progress bar mid-dismiss. Bail — E8 owns the bar.
+    if (this.hasDescription() || this.hasAction() || this.hasCancel()) return
+    if (isExpanded || phase === 'loading' || actionSuccess) {
+      this.driveProgress(0, false)
+      return
+    }
+    const duration = this.entry().duration()
+    if (!Number.isFinite(duration)) {
+      this.driveProgress(0, false)
+      return
+    }
 
-    const delay = this.simpleRemaining ?? duration
-    this.simpleStart = Date.now()
-    this.simpleTimer = setTimeout(() => {
-      if (this.hoveredRef || this.containerHovered()) {
-        this.simpleRemaining = Math.max(0, delay - (Date.now() - this.simpleStart))
-        return
+    // Hover/focus pauses: bank elapsed time and freeze the bar (don't restart).
+    if (hovered || containerHovered || this.hoveredRef) {
+      if (this.simpleStart) {
+        this.simpleRemaining = Math.max(
+          0,
+          this.simpleArmedDelay - (Date.now() - this.simpleStart),
+        )
       }
+      this.driveProgress(0, false)
+      return
+    }
+
+    const fresh = this.simpleRemaining == null
+    const delay = this.simpleRemaining ?? duration
+    this.simpleArmedDelay = delay
+    this.simpleStart = Date.now()
+    this.driveProgress(delay, true, fresh)
+    this.simpleTimer = setTimeout(() => {
+      this.simpleRemaining = null
       this.leave('auto')
     }, delay)
+  }
+
+  /**
+   * Drive the countdown bar from the live dismiss timer — single source of truth,
+   * so it can never drift from the real auto-dismiss. `running` starts/resumes a
+   * linear shrink to empty over `remainingMs`; otherwise it freezes the bar in
+   * place at its current width (hover pause / sticky / collapse).
+   */
+  private driveProgress(remainingMs: number, running: boolean, resetToFull = false): void {
+    if (!this.showProgress()) return
+    const bar = this.progressBarRef()?.nativeElement
+    if (!bar) return
+    if (!running || !Number.isFinite(remainingMs) || remainingMs <= 0) {
+      const sx = currentScaleX(bar)
+      bar.style.transition = 'none'
+      bar.style.transform = `scaleX(${sx})`
+      return
+    }
+    // Anchor the start width (full on a fresh arm, else the current/frozen
+    // width so a resume continues seamlessly), then animate to empty over the
+    // remaining time.
+    const sx = resetToFull ? 1 : currentScaleX(bar)
+    bar.style.transition = 'none'
+    bar.style.transform = `scaleX(${sx})`
+    void bar.offsetWidth // reflow so the next change animates
+    bar.style.transition = `transform ${remainingMs}ms linear`
+    bar.style.transform = 'scaleX(0)'
   }
 
   // ----------------------------------------------------------------- leave
@@ -1236,6 +1321,16 @@ export class GooeyToastComponent implements OnDestroy {
     } catch {
       /* onClick errors shouldn't block morph-back */
     }
+  }
+
+  onCancelClick(): void {
+    const cancel = this.effectiveCancel()
+    try {
+      cancel?.onClick?.()
+    } catch {
+      /* onClick errors shouldn't block dismissal */
+    }
+    this.leave('manual')
   }
 
   onCloseClick(e: Event): void {
@@ -1433,4 +1528,15 @@ function formatTime(d: Date): string {
     minute: '2-digit',
     second: '2-digit',
   })
+}
+
+/** Current x-scale of an element from its computed transform (1 if none). */
+function currentScaleX(el: HTMLElement): number {
+  const t = getComputedStyle(el).transform
+  if (!t || t === 'none') return 1
+  try {
+    return new DOMMatrixReadOnly(t).a
+  } catch {
+    return 1
+  }
 }

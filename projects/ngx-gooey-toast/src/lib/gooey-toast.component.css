@@ -216,13 +216,16 @@
 
 /* Action button */
 .action {
+  display: flex;
+  gap: 8px;
   margin-top: 12px;
   overflow: hidden;
 }
 .action-btn {
   display: block;
   box-sizing: border-box;
-  width: 100%;
+  flex: 1 1 0;
+  min-width: 0;
   border: none;
   border-radius: 999px;
   padding: 10px 20px;
@@ -302,13 +305,12 @@
   height: 100%;
   border-radius: 2px;
   transform-origin: left center;
+  /* Driven from JS (driveProgress): a linear scaleX(1)→scaleX(0) shrink whose
+     duration is the live dismiss timer's remaining time, so the bar can never
+     drift from the real auto-dismiss. Hover freezes it; un-hover resumes. */
+  transform: scaleX(1);
   background: #757575; /* ≥ 3:1 (non-text UI) on white */
   transition: background-color 0.35s ease;
-  animation: gooey-progress-shrink var(--gooey-progress-duration, 4000ms) linear
-    forwards;
-}
-.progress.paused .progress-bar {
-  animation-play-state: paused;
 }
 .progress-bar[data-phase='success'] {
   background: #2e7d32;
@@ -321,14 +323,6 @@
 }
 .progress-bar[data-phase='info'] {
   background: #1565c0;
-}
-@keyframes gooey-progress-shrink {
-  from {
-    transform: scaleX(1);
-  }
-  to {
-    transform: scaleX(0);
-  }
 }
 .wrapper[data-theme='dark'] .progress {
   background: rgba(255, 255, 255, 0.1);
@@ -393,8 +387,9 @@
 
 @media (prefers-reduced-motion: reduce) {
   .header,
-  .action-btn,
-  .progress-bar {
+  .action-btn {
     transition: none;
   }
+  /* The countdown bar is an informational progress indicator (not vestibular
+     motion); its shrink is driven by an inline transition in driveProgress. */
 }

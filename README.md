@@ -11,6 +11,16 @@ dependencies** — the spring engine is hand-rolled on `requestAnimationFrame`
 builder). The publishable package lives in `projects/ngx-gooey-toast/` and ships
 its own README with the full install/usage/API docs.
 
+## AI / Agent Skill
+
+The library ships an [Agent Skill](https://www.skills.sh/) (`SKILL.md` +
+`references/`). Install it so an AI coding agent (Claude Code, Cursor, …) knows the
+full API and patterns and writes correct toast code without you pasting docs:
+
+```bash
+npx skills add juanvieiraprado99/ngx-gooey-toast
+```
+
 ## The library (`projects/ngx-gooey-toast`)
 
 Two public exports:

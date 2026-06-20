@@ -60,6 +60,16 @@ import { GooeyToasterComponent } from 'ngx-gooey-toast'
 export class App {}
 ```
 
+## AI / Agent Skill
+
+Building with an AI coding agent (Claude Code, Cursor, …)? Install the
+[Agent Skill](https://www.skills.sh/) so your agent knows this library's full API and
+patterns and writes correct toast code without you pasting docs:
+
+```bash
+npx skills add juanvieiraprado99/ngx-gooey-toast
+```
+
 ## Usage
 
 Inject the service anywhere and fire a toast:
@@ -250,6 +260,16 @@ import { GooeyToasterComponent } from 'ngx-gooey-toast'
   template: `<gooey-toaster position="top-right" theme="light" />`,
 })
 export class App {}
+```
+
+### Skill de IA / Agente
+
+Usando um agente de IA (Claude Code, Cursor, …)? Instale a
+[Agent Skill](https://www.skills.sh/) para que o agente conheça a API completa da lib
+e gere o código dos toasts corretamente, sem você colar a documentação:
+
+```bash
+npx skills add juanvieiraprado99/ngx-gooey-toast
 ```
 
 ### Uso

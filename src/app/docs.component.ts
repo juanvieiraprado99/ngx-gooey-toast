@@ -45,6 +45,23 @@ interface MethodRow {
         <app-install-tabs />
       </section>
 
+      <!-- AI / Agent Skill -->
+      <section class="grid gap-4 border-b border-neutral-200 py-8 md:grid-cols-[16rem_1fr] md:gap-10">
+        <div>
+          <h3 class="font-semibold">AI / Agent Skill</h3>
+          <p class="mt-1 text-sm text-neutral-500">
+            Using an AI coding agent (Claude Code, Cursor, …)? Install the
+            <a
+              class="font-medium text-indigo-600 underline underline-offset-2 hover:text-indigo-500"
+              href="https://www.skills.sh/"
+              target="_blank"
+              rel="noreferrer"
+            >Agent Skill</a> so it knows the full API and writes correct toast code — no docs to paste.
+          </p>
+        </div>
+        <app-code-block [code]="skillInstall" language="bash" />
+      </section>
+
       @for (row of rows; track row.title) {
         <section
           class="grid gap-4 border-b border-neutral-200 py-8 md:grid-cols-[16rem_1fr] md:gap-10"
@@ -194,6 +211,8 @@ interface MethodRow {
   `,
 })
 export class DocsComponent {
+  protected readonly skillInstall = 'npx skills add juanvieiraprado99/ngx-gooey-toast'
+
   protected readonly rows: DocRow[] = [
     {
       title: 'Setup',

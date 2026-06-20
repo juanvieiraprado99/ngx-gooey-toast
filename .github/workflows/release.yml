@@ -2,11 +2,14 @@ name: Release
 
 # Fires on every push to main (and can be run manually). The release is driven by
 # the LIB version in projects/ngx-gooey-toast/package.json:
-#   - if that version has no `vX.Y.Z` tag yet → build, tag, cut a GitHub Release
-#     whose body is the matching CHANGELOG.md section;
+#   - if that version has no `vX.Y.Z` GitHub Release yet → build and cut one whose
+#     body is the matching CHANGELOG.md section. (We key off the Release, not the
+#     git tag: `git push --follow-tags` lands the tag together with the commit, so
+#     the tag always exists by the time this workflow runs — checking the tag would
+#     always skip the Release. The tag is reused as-is by action-gh-release.)
 #   - if that version isn't on npm yet → publish it (uses the NPM_TOKEN secret).
 # Both checks are independent, so a version can be (re)published even if it was
-# already tagged. Commits that don't bump the version are a no-op.
+# already released. Commits that don't bump the version are a no-op.
 #
 # To cut a release: bump projects/ngx-gooey-toast/package.json, add the matching
 # CHANGELOG.md section, commit, and push to main.
@@ -43,17 +46,18 @@ jobs:
         id: ver
         run: echo "version=$(node -p "require('./projects/ngx-gooey-toast/package.json').version")" >> "$GITHUB_OUTPUT"
 
-      - name: Check whether this version is already tagged
-        id: tag
+      - name: Check whether this version already has a GitHub Release
+        id: rel
         env:
           VERSION: ${{ steps.ver.outputs.version }}
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
-          if git rev-parse -q --verify "refs/tags/v$VERSION" >/dev/null; then
+          if gh release view "v$VERSION" >/dev/null 2>&1; then
             echo "exists=true" >> "$GITHUB_OUTPUT"
-            echo "v$VERSION already tagged — will not re-create the GitHub Release."
+            echo "v$VERSION already has a GitHub Release — will not re-create it."
           else
             echo "exists=false" >> "$GITHUB_OUTPUT"
-            echo "v$VERSION is a new tag."
+            echo "v$VERSION has no GitHub Release yet."
           fi
 
       - name: Check whether this version is already on npm
@@ -71,24 +75,24 @@ jobs:
           fi
 
       - name: Install dependencies
-        if: steps.tag.outputs.exists == 'false' || steps.npm.outputs.publish == 'true'
+        if: steps.rel.outputs.exists == 'false' || steps.npm.outputs.publish == 'true'
         run: npm ci
 
       - name: Build library
-        if: steps.tag.outputs.exists == 'false' || steps.npm.outputs.publish == 'true'
+        if: steps.rel.outputs.exists == 'false' || steps.npm.outputs.publish == 'true'
         run: npm run build:lib
 
       # --- GitHub Release (only when the tag is new) -------------------------
       # Pass the version via env (not inline ${{ }} interpolation) so it can't
       # inject into the shell.
       - name: Extract release notes
-        if: steps.tag.outputs.exists == 'false'
+        if: steps.rel.outputs.exists == 'false'
         env:
           VERSION: ${{ steps.ver.outputs.version }}
         run: node scripts/extract-release-notes.mjs "v$VERSION" > RELEASE_NOTES.md
 
       - name: Create GitHub Release
-        if: steps.tag.outputs.exists == 'false'
+        if: steps.rel.outputs.exists == 'false'
         uses: softprops/action-gh-release@3bb12739c298aeb8a4eeaf626c5b8d85266b0e65 # v2
         with:
           tag_name: v${{ steps.ver.outputs.version }}

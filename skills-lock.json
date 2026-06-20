@@ -1,0 +1,11 @@
+{
+  "version": 1,
+  "skills": {
+    "ngx-gooey-toast": {
+      "source": "juanvieiraprado99/ngx-gooey-toast",
+      "sourceType": "github",
+      "skillPath": "skills/ngx-gooey-toast/SKILL.md",
+      "computedHash": "e83d293493bc6217c32cdea395ff6e2b966a85b4fdadddf61ee53dbb5c612302"
+    }
+  }
+}

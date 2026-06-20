@@ -42,6 +42,10 @@ testem.log
 /typings
 __screenshots__/
 
+# Vendored Claude skills — local only, not published via skills.sh
+.claude/skills/angular-developer/
+.claude/skills/frontend-design/
+
 # System files
 .DS_Store
 Thumbs.db

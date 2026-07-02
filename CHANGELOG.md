@@ -4,6 +4,13 @@ All notable changes to this project are documented here. This file is generated
 from [Conventional Commit](https://www.conventionalcommits.org/) messages by
 `commit-and-tag-version` — do not edit it by hand.
 
+## [0.3.1](https://github.com/juanvieiraprado99/ngx-gooey-toast/compare/v0.3.0...v0.3.1) (2026-07-02)
+
+
+### Features
+
+* **toast:** add custom toast, dismissible flag, and mutable duration ([f854d9a](https://github.com/juanvieiraprado99/ngx-gooey-toast/commit/f854d9ae180eec86b538eb9efb0bb51afd3cccd1))
+
 ## [0.3.0](https://github.com/juanvieiraprado99/ngx-gooey-toast/compare/v0.2.1...v0.3.0) (2026-06-19)
 
 

@@ -187,6 +187,18 @@
   color: #e0e0e0;
 }
 
+/* Fully custom toast body (toast.custom()) — the consumer template owns the
+   layout; we only set readable base text colors per theme. */
+.custom-body {
+  font-size: 13px;
+  line-height: 1.55;
+  color: #444;
+  text-align: left;
+}
+.wrapper[data-theme='dark'] .custom-body {
+  color: #e0e0e0;
+}
+
 /* Inline rich content (sanitized html / light markdown) inside a description */
 .rich-content {
   word-break: break-word;

@@ -33,6 +33,17 @@ describe('gooey-morph', () => {
     expect(blob.includes('Q')).toBe(true)
     expect(blob).not.toBe(pill)
   })
+
+  it('degrades to a rounded rect (no inward neck) when the pill spans the full width', () => {
+    // pw === bw (e.g. toast.custom, or a header as wide as the body): the gooey
+    // neck would curve inward and notch the right edge — must have no Q at all.
+    const full = morphPath(300, 300, 120, 1)
+    expect(full.includes('Q')).toBe(false)
+    expect(full.includes(`L 300,`)).toBe(true) // straight full-width right edge
+    expect(full.includes('120')).toBe(true) // reaches the full target height
+    // Mid-morph too — the neck must never appear while growing.
+    expect(morphPath(300, 300, 120, 0.6).includes('Q')).toBe(false)
+  })
 })
 
 describe('spring-animate', () => {
@@ -442,5 +453,108 @@ describe('GooeyToastService', () => {
     const ids = new Set<string | number>()
     for (let i = 0; i < 100; i++) ids.add(s.info(`t${i}`))
     expect(ids.size).toBe(100)
+  })
+
+  it('reusing a live toast id updates it in place instead of duplicating', () => {
+    const s = new GooeyToastService()
+    const id = s.info('Connecting', { id: 'net' })
+    const id2 = s.success('Connected', { id: 'net', duration: 2000 })
+    expect(id2).toBe(id)
+    expect(s.toasts().length).toBe(1)
+    const entry = s.toasts()[0]
+    expect(entry.title()).toBe('Connected')
+    expect(entry.type()).toBe('success')
+    expect(entry.duration()).toBe(2000)
+  })
+
+  it('reusing a queued toast id updates the queued entry', () => {
+    const s = new GooeyToastService()
+    s.visibleToasts.set(1)
+    s.info('visible')
+    s.info('waiting', { id: 'q' })
+    s.error('failed while queued', { id: 'q' })
+    expect(s.toasts().length).toBe(1) // still only the visible one
+    s.remove(s.toasts()[0].id, 'manual') // drain the queue
+    expect(s.toasts()[0].title()).toBe('failed while queued')
+    expect(s.toasts()[0].type()).toBe('error')
+  })
+
+  it('dismissible is stored on the entry (defaults to undefined = dismissible)', () => {
+    const s = new GooeyToastService()
+    const blocked = s.error('Critical', { dismissible: false })
+    const normal = s.info('ok')
+    expect(s.toasts().find((t) => t.id === blocked)!.dismissible).toBe(false)
+    expect(s.toasts().find((t) => t.id === normal)!.dismissible).toBeUndefined()
+  })
+
+  it('showTimestampDefault is the fallback for new toasts', () => {
+    const s = new GooeyToastService()
+    s.showTimestampDefault.set(false)
+    const plain = s.info('a')
+    const explicit = s.info('b', { showTimestamp: true })
+    expect(s.toasts().find((t) => t.id === plain)!.showTimestamp()).toBe(false)
+    expect(s.toasts().find((t) => t.id === explicit)!.showTimestamp()).toBe(true)
+  })
+
+  it('promise honors per-result durations and runs finally on success', async () => {
+    const s = new GooeyToastService()
+    let ran = false
+    const p = Promise.resolve()
+    const id = s.promise(p, {
+      loading: 'Saving',
+      success: 'Saved',
+      error: 'Failed',
+      successDuration: 1234,
+      finally: () => (ran = true),
+    })
+    await p
+    await Promise.resolve()
+    const entry = s.toasts().find((t) => t.id === id)!
+    expect(entry.duration()).toBe(1234)
+    expect(ran).toBe(true)
+  })
+
+  it('promise honors errorDuration and runs finally on rejection', async () => {
+    const s = new GooeyToastService()
+    let ran = false
+    const p = Promise.reject(new Error('nope'))
+    const id = s.promise(p, {
+      loading: 'Saving',
+      error: 'Failed',
+      success: 'Saved',
+      duration: 9999,
+      errorDuration: 500,
+      finally: () => (ran = true),
+    })
+    await p.catch(() => {})
+    await Promise.resolve()
+    const entry = s.toasts().find((t) => t.id === id)!
+    expect(entry.phase()).toBe('error')
+    expect(entry.duration()).toBe(500)
+    expect(ran).toBe(true)
+  })
+
+  it('custom() stores the template, uses ariaLabel as title, and replays', () => {
+    const s = new GooeyToastService()
+    const tpl = {} as import('@angular/core').TemplateRef<unknown>
+    const id = s.custom(tpl, { ariaLabel: 'Upload card', duration: 3000 })
+    const entry = s.toasts().find((t) => t.id === id)!
+    expect(entry.custom).toBe(tpl)
+    expect(entry.title()).toBe('Upload card')
+    expect(entry.duration()).toBe(3000)
+    s.remove(id, 'manual')
+    const newId = s.replay(s.history()[0].id)!
+    expect(s.toasts().find((t) => t.id === newId)!.custom).toBe(tpl)
+  })
+
+  it('pageVisible pauses via visibilitychange (hidden tab = paused timers)', () => {
+    const s = new GooeyToastService()
+    expect(s.pageVisible()).toBe(true)
+    Object.defineProperty(document, 'hidden', { configurable: true, value: true })
+    document.dispatchEvent(new Event('visibilitychange'))
+    expect(s.pageVisible()).toBe(false)
+    Object.defineProperty(document, 'hidden', { configurable: true, value: false })
+    document.dispatchEvent(new Event('visibilitychange'))
+    expect(s.pageVisible()).toBe(true)
   })
 })

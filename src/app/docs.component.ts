@@ -299,18 +299,46 @@ toast.update(id, {
     },
     {
       title: 'Promise',
-      blurb: 'Loading → success/error, resolved in place from a promise.',
+      blurb:
+        'Loading → success/error, resolved in place. Per-result durations and a finally callback are optional.',
       code: `toast.promise(uploadFile(), {
   loading: 'Uploading…',
   success: (res) => \`Uploaded \${res.name}\`,
   error: 'Upload failed',
+  successDuration: 4000,   // optional per-result overrides
+  errorDuration: 8000,
+  finally: () => refresh() // runs on settle, either way
 })`,
     },
     {
       title: 'Update in place',
-      blurb: 'Mutate a live toast by the id returned from any create call.',
+      blurb:
+        'Mutate a live toast via update(), or just re-show with the same id — it updates in place instead of stacking.',
       code: `const id = toast.info('Connecting…')
-toast.update(id, { title: 'Connected', type: 'success' })`,
+toast.update(id, { title: 'Connected', type: 'success' })
+
+// or: reuse the id — no update() needed
+toast.info('Connecting…', { id: 'net' })
+toast.success('Connected', { id: 'net' })`,
+    },
+    {
+      title: 'Custom toast (template)',
+      blurb:
+        'toast.custom() renders your TemplateRef as the entire body — no built-in header or icon. ariaLabel is required (screen readers + history).',
+      code: `<!-- <ng-template #card>…your markup…</ng-template> -->
+toast.custom(this.card(), {
+  ariaLabel: 'Upload finished, report.pdf',
+  duration: 8000,
+})`,
+    },
+    {
+      title: 'Non-dismissible',
+      blurb:
+        'dismissible: false blocks swipe, the close button and Escape; only the timer or a programmatic dismiss() removes it.',
+      code: `toast.warning('Maintenance in 5 min', {
+  dismissible: false,
+  duration: 10000,
+})`,
     },
     {
       title: 'Dismiss',
@@ -355,6 +383,63 @@ toast.success('Boing!', { preset: 'bouncy' })
 // or tune manually
 toast.info('Custom spring', { spring: true, bounce: 0.5 })`,
     },
+    {
+      title: 'Custom toast — complete example',
+      blurb:
+        'Full recipe for toast.custom(): your <ng-template> is the entire body (no built-in header/icon), so the component styles own the layout. fillColor paints the blob behind it; ariaLabel is required (screen readers + history). Important: the template renders inside the toast component, so default (emulated) style encapsulation will NOT reach it — use ViewEncapsulation.None (shown below) or global styles for the card classes.',
+      code: `import { ChangeDetectionStrategy, Component, TemplateRef, ViewEncapsulation, inject, viewChild } from '@angular/core'
+import { GooeyToastService } from 'ngx-gooey-toast'
+
+@Component({
+  selector: 'app-message-toast',
+  changeDetection: ChangeDetectionStrategy.OnPush,
+  // Required for the card styles: the template is stamped inside the toast,
+  // so emulated-scoped styles would not match it. Alternatively, put the
+  // card CSS in your global stylesheet.
+  encapsulation: ViewEncapsulation.None,
+  template: \`
+    <button type="button" (click)="show()">Notify</button>
+
+    <ng-template #card>
+      <div class="card">
+        <div class="avatar">AL</div>
+        <div class="body">
+          <div class="name">Ana Lima</div>
+          <div class="preview">Can you review my PR?</div>
+        </div>
+        <button type="button" class="reply" (click)="reply()">Reply</button>
+      </div>
+    </ng-template>
+  \`,
+  styles: \`
+    .card    { display: flex; align-items: center; gap: 10px; }
+    .avatar  { width: 34px; height: 34px; border-radius: 50%; display: grid;
+               place-items: center; color: #fff; font: 700 12px sans-serif;
+               background: linear-gradient(135deg, #6366f1, #a855f7); }
+    .name    { font-size: 13px; font-weight: 700; }
+    .preview { font-size: 12px; opacity: 0.75; }
+    .reply   { border: none; border-radius: 999px; padding: 7px 14px;
+               background: #6366f1; color: #fff; font-weight: 700; cursor: pointer; }
+  \`,
+})
+export class MessageToastComponent {
+  private readonly toast = inject(GooeyToastService)
+  private readonly card = viewChild.required<TemplateRef<unknown>>('card')
+
+  show(): void {
+    this.toast.custom(this.card(), {
+      ariaLabel: 'New message from Ana Lima: can you review my PR?',
+      duration: 8000,
+      // fillColor: '#1a1a1a',  // dark blob? add light text colors in .card
+      // dismissible: false,    // only the timer / dismiss() closes it
+    })
+  }
+
+  reply(): void {
+    this.toast.dismiss() // or navigate, open a panel, etc.
+  }
+}`,
+    },
   ]
 
   protected readonly toasterProps: PropRow[] = [
@@ -378,6 +463,7 @@ toast.info('Custom spring', { spring: true, bounce: 0.5 })`,
     { name: 'stackDirection', type: "'newest-first' | 'oldest-first'", default: "'newest-first'", description: 'Where new toasts enter: nearest the anchored edge (default) or pushed to the far end.' },
     { name: 'haptics', type: 'boolean', default: 'false', description: 'Vibrate on toast arrival (mobile, opt-in). Per-type pattern; respects reduced-motion. No sound.' },
     { name: 'historyLimit', type: 'number', default: '20', description: 'Max dismissed toasts kept for replay via the service (0 disables).' },
+    { name: 'showTimestamp', type: 'boolean', default: 'true', description: 'Default for per-toast timestamps (each toast can override).' },
   ]
 
   protected readonly toastOptions: PropRow[] = [
@@ -386,7 +472,7 @@ toast.info('Custom spring', { spring: true, bounce: 0.5 })`,
     { name: 'cancel', type: 'GooeyToastCancel', default: '', description: '{ label, onClick? } secondary cancel button; dismisses the toast on click.' },
     { name: 'icon', type: 'string | TemplateRef', default: '', description: 'Custom leading icon.' },
     { name: 'duration', type: 'number', default: '', description: 'Override auto-dismiss time (ms) for this toast.' },
-    { name: 'id', type: 'string | number', default: '', description: 'Provide a stable id (e.g. to update later).' },
+    { name: 'id', type: 'string | number', default: '', description: 'Provide a stable id. Re-showing with the same id updates the live toast in place instead of stacking a duplicate.' },
     { name: 'fillColor', type: 'string', default: '', description: 'Background fill colour.' },
     { name: 'borderColor', type: 'string', default: '', description: 'Border colour.' },
     { name: 'borderWidth', type: 'number', default: '', description: 'Border width (px).' },
@@ -395,6 +481,7 @@ toast.info('Custom spring', { spring: true, bounce: 0.5 })`,
     { name: 'bounce', type: 'number', default: '', description: 'Spring bounciness (0–1) for this toast.' },
     { name: 'showProgress', type: 'boolean', default: '', description: 'Show the countdown progress bar.' },
     { name: 'showTimestamp', type: 'boolean', default: 'true', description: 'Show a relative timestamp.' },
+    { name: 'dismissible', type: 'boolean', default: 'true', description: 'false blocks user dismissal (swipe, close button, Escape); dismiss() still works.' },
     { name: 'onDismiss', type: '(id) => void', default: '', description: 'Fires when the toast is removed (auto or manual).' },
     { name: 'onAutoClose', type: '(id) => void', default: '', description: 'Fires only when the toast auto-closes.' },
   ]
@@ -406,7 +493,8 @@ toast.info('Custom spring', { spring: true, bounce: 0.5 })`,
     { signature: 'warning(title, options?)', returns: 'string | number', description: 'Warning toast (assertive).' },
     { signature: 'info(title, options?)', returns: 'string | number', description: 'Info toast.' },
     { signature: 'loading(title, options?)', returns: 'string | number', description: 'Sticky loading toast (Infinity duration by default); resolve later with update().' },
-    { signature: 'promise(promise, data)', returns: 'string | number', description: 'Loading → success/error from a promise.' },
+    { signature: 'promise(promise, data)', returns: 'string | number', description: 'Loading → success/error from a promise. Supports duration/successDuration/errorDuration and a finally callback.' },
+    { signature: 'custom(templateRef, options)', returns: 'string | number', description: 'Fully custom toast: your TemplateRef is the body. ariaLabel required (screen readers + history). Style the card with ViewEncapsulation.None or global CSS — emulated-scoped styles don’t reach templates stamped inside the toast.' },
     { signature: 'update(id, options)', returns: 'void', description: 'Mutate a live toast in place (title, type, duration, cancel, icon…).' },
     { signature: 'dismiss(idOrFilter?)', returns: 'void', description: 'Dismiss by id, by { type } filter, or all.' },
     { signature: 'history()', returns: 'GooeyHistoryRecord[]', description: 'Dismissed toasts kept for replay (newest first; in-memory).' },

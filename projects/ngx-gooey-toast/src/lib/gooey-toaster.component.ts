@@ -254,6 +254,12 @@ export class GooeyToasterComponent {
   readonly haptics = input(false)
   /** Max dismissed toasts kept for replay (0 disables). */
   readonly historyLimit = input(20)
+  /**
+   * Default for per-toast timestamps (each toast can still override via
+   * `GooeyToastOptions.showTimestamp`).
+   * @defaultValue `true`
+   */
+  readonly showTimestamp = input(true)
 
   // --- Metaball merge ------------------------------------------------------
   readonly mergeOn = computed(() => this.merge())
@@ -297,6 +303,8 @@ export class GooeyToasterComponent {
   private readonly mergePaths = viewChildren<ElementRef<SVGPathElement>>('mergePath')
   private readonly mergeSvgRef = viewChild<ElementRef<SVGSVGElement>>('mergeSvg')
   private rafId: number | null = null
+  private mergeIdleTimer: ReturnType<typeof setTimeout> | null = null
+  private mergeIdleFrames = 0
   /** Last `d`/`transform` written per merge path — skip rAF writes that don't change. */
   private readonly lastMergeWrites = new WeakMap<
     SVGPathElement,
@@ -330,6 +338,7 @@ export class GooeyToasterComponent {
       this.service.mergeBlobs.set(this.merge())
       this.service.haptics.set(this.haptics())
       this.service.historyLimit.set(this.historyLimit())
+      this.service.showTimestampDefault.set(this.showTimestamp())
     })
 
     // FLIP layout animation: when the list changes, every item that was
@@ -394,26 +403,66 @@ export class GooeyToasterComponent {
       effect(() => {
         const on = this.service.mergeBlobs()
         const has = this.service.toasts().length > 0
-        untracked(() => (on && has ? this.startMergeLoop() : this.stopMergeLoop()))
+        // Track hover too: hover kicks off expand/collapse morphs, so resume
+        // per-frame syncing before the idle-throttled loop would notice.
+        this.service.containerHovered()
+        untracked(() => {
+          if (on && has) {
+            this.startMergeLoop()
+            this.wakeMergeLoop()
+          } else {
+            this.stopMergeLoop()
+          }
+        })
       })
       inject(DestroyRef).onDestroy(() => this.stopMergeLoop())
     }
   }
 
   // ------------------------------------------------------------- merge loop
-  private startMergeLoop(): void {
-    if (this.rafId != null) return
-    const tick = () => {
-      this.syncMergePaths()
-      this.rafId = requestAnimationFrame(tick)
+  /**
+   * Per-frame while anything moves; after ~10 unchanged frames drops to slow
+   * polling (200ms) so an idle stack stops forcing layout (getScreenCTM) at
+   * 60fps. `wakeMergeLoop()` resumes full rate on toast-list/hover changes.
+   */
+  private readonly mergeTick = () => {
+    this.rafId = null
+    const changed = this.syncMergePaths()
+    this.mergeIdleFrames = changed ? 0 : this.mergeIdleFrames + 1
+    if (this.mergeIdleFrames >= 10) {
+      this.mergeIdleTimer = setTimeout(() => {
+        this.mergeIdleTimer = null
+        this.rafId = requestAnimationFrame(this.mergeTick)
+      }, 200)
+    } else {
+      this.rafId = requestAnimationFrame(this.mergeTick)
     }
-    this.rafId = requestAnimationFrame(tick)
+  }
+
+  private startMergeLoop(): void {
+    if (this.rafId != null || this.mergeIdleTimer != null) return
+    this.mergeIdleFrames = 0
+    this.rafId = requestAnimationFrame(this.mergeTick)
+  }
+
+  /** Resume per-frame syncing immediately (something is about to animate). */
+  private wakeMergeLoop(): void {
+    this.mergeIdleFrames = 0
+    if (this.mergeIdleTimer != null) {
+      clearTimeout(this.mergeIdleTimer)
+      this.mergeIdleTimer = null
+      this.rafId = requestAnimationFrame(this.mergeTick)
+    }
   }
 
   private stopMergeLoop(): void {
     if (this.rafId != null) {
       cancelAnimationFrame(this.rafId)
       this.rafId = null
+    }
+    if (this.mergeIdleTimer != null) {
+      clearTimeout(this.mergeIdleTimer)
+      this.mergeIdleTimer = null
     }
   }
 
@@ -423,13 +472,14 @@ export class GooeyToasterComponent {
    * sits at viewport origin with a 1:1 viewBox, a toast's blob-space
    * `getScreenCTM()` is already the matrix into shared-svg space. Read all
    * geometry first, then write — avoids layout thrash.
+   * @returns whether any path actually changed this frame (drives idle throttle).
    */
-  private syncMergePaths(): void {
+  private syncMergePaths(): boolean {
     const paths = this.mergePaths()
-    if (paths.length === 0) return
+    if (paths.length === 0) return false
     const root = this.mergeSvgRef()?.nativeElement
     const rootCtm = root?.getScreenCTM()
-    if (!rootCtm) return
+    if (!rootCtm) return false
     // Compose into the shared svg's OWN user space via a relative CTM. This
     // cancels any global offset/zoom that affects both svgs equally (mobile
     // visual-viewport offset, page zoom, device-pixel-ratio) — without it the
@@ -459,13 +509,16 @@ export class GooeyToasterComponent {
       })
     }
 
+    let changed = false
     for (const w of writes) {
       const prev = this.lastMergeWrites.get(w.el)
       if (prev && prev.d === w.d && prev.transform === w.transform) continue
       w.el.setAttribute('d', w.d)
       w.el.setAttribute('transform', w.transform)
       this.lastMergeWrites.set(w.el, { d: w.d, transform: w.transform })
+      changed = true
     }
+    return changed
   }
 
   /**
@@ -486,7 +539,13 @@ export class GooeyToasterComponent {
   }
   onEscape(): void {
     if (!this.service.closeOnEscape()) return
-    const id = this.service.mostRecentId()
-    if (id != null) this.service.dismiss(id)
+    // Newest dismissible toast — `dismissible: false` toasts are Escape-immune.
+    const list = this.service.toasts()
+    for (let i = list.length - 1; i >= 0; i--) {
+      if (list[i].dismissible !== false) {
+        this.service.dismiss(list[i].id)
+        return
+      }
+    }
   }
 }

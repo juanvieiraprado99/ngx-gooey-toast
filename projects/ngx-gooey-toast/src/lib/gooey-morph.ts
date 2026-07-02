@@ -60,6 +60,23 @@ function morphPathRaw(pw: number, bw: number, th: number, t: number): string {
   const bodyTop = PH - curve
   const qEndX = Math.min(pillW + curve, bodyW - cr)
 
+  // When the body is no wider than the pill (e.g. a header/custom body spanning
+  // the full width), the gooey neck's Q would curve INWARD and carve a notch
+  // into the right edge — degrade to a plain rounded rect instead.
+  if (qEndX <= pillW) {
+    return [
+      `M 0,${pr}`,
+      `A ${pr},${pr} 0 0 1 ${pr},0`,
+      `H ${bodyW - pr}`,
+      `A ${pr},${pr} 0 0 1 ${bodyW},${pr}`,
+      `L ${bodyW},${bodyH - cr}`,
+      `A ${cr},${cr} 0 0 1 ${bodyW - cr},${bodyH}`,
+      `H ${cr}`,
+      `A ${cr},${cr} 0 0 1 0,${bodyH - cr}`,
+      `Z`,
+    ].join(' ')
+  }
+
   return [
     `M 0,${pr}`,
     `A ${pr},${pr} 0 0 1 ${pr},0`,
@@ -117,6 +134,23 @@ function morphPathCenterRaw(
   // Q curve endpoints: body edges meet pill edges with organic curves
   const qLeftX = Math.max(bodyLeft + cr, pillOffset - curve)
   const qRightX = Math.min(bodyRight - cr, pillOffset + pillW + curve)
+
+  // Same full-width degradation as morphPathRaw: if the necks would curve
+  // inward (body no wider than the pill — symmetric, so one side suffices),
+  // draw a plain rounded rect over the body bounds.
+  if (qRightX <= pillOffset + pillW) {
+    return [
+      `M ${bodyLeft},${pr}`,
+      `A ${pr},${pr} 0 0 1 ${bodyLeft + pr},0`,
+      `H ${bodyRight - pr}`,
+      `A ${pr},${pr} 0 0 1 ${bodyRight},${pr}`,
+      `L ${bodyRight},${bodyH - cr}`,
+      `A ${cr},${cr} 0 0 1 ${bodyRight - cr},${bodyH}`,
+      `H ${bodyLeft + cr}`,
+      `A ${cr},${cr} 0 0 1 ${bodyLeft},${bodyH - cr}`,
+      `Z`,
+    ].join(' ')
+  }
 
   return [
     `M ${pillOffset},${pr}`,

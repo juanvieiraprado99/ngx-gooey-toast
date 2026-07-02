@@ -1,3 +1,5 @@
+import { provideHttpClient } from '@angular/common/http';
+import { HttpTestingController, provideHttpClientTesting } from '@angular/common/http/testing';
 import { TestBed } from '@angular/core/testing';
 import { provideRouter } from '@angular/router';
 import { App } from './app';
@@ -6,7 +8,9 @@ describe('App', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [App],
-      providers: [provideRouter([])],
+      // Mock HTTP backend: the header's GitHub-stars httpResource must not hit
+      // the real api.github.com in tests (403 rate-limit flake).
+      providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
     }).compileComponents();
   });
 
@@ -18,6 +22,11 @@ describe('App', () => {
 
   it('should render the header logo', async () => {
     const fixture = TestBed.createComponent(App);
+    fixture.detectChanges();
+    // Flush the header's GitHub-stars request so whenStable() can settle.
+    TestBed.inject(HttpTestingController)
+      .match(() => true)
+      .forEach((req) => req.flush({ stargazers_count: 1 }));
     await fixture.whenStable();
     const compiled = fixture.nativeElement as HTMLElement;
     expect(compiled.querySelector('.logo')?.textContent).toContain('ngx-gooey-toast');

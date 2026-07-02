@@ -95,6 +95,37 @@ export interface GooeyToastOptions {
    * calls hit the single shared entry. (`promise()` toasts never coalesce.)
    */
   coalesce?: boolean
+  /**
+   * Whether the user can dismiss this toast (swipe, close button, Escape).
+   * `false` makes it dismissable only programmatically (`dismiss()`/`update()`).
+   * @defaultValue `true`
+   */
+  dismissible?: boolean
+  onDismiss?: (id: string | number) => void
+  onAutoClose?: (id: string | number) => void
+}
+
+/**
+ * Options for `toast.custom()` — a fully custom toast whose body is your
+ * TemplateRef (no built-in header/icon/description).
+ */
+export interface GooeyCustomToastOptions {
+  /**
+   * Announced to screen readers and shown in history — a TemplateRef is opaque
+   * to assistive tech, so a text alternative is required.
+   */
+  ariaLabel: string
+  duration?: number
+  id?: string | number
+  classNames?: GooeyToastClassNames
+  fillColor?: string
+  borderColor?: string
+  borderWidth?: number
+  preset?: AnimationPresetName
+  spring?: boolean
+  bounce?: number
+  showProgress?: boolean
+  dismissible?: boolean
   onDismiss?: (id: string | number) => void
   onAutoClose?: (id: string | number) => void
 }
@@ -112,6 +143,14 @@ export interface GooeyPromiseData<T> {
     success?: GooeyToastAction
     error?: GooeyToastAction
   }
+  /** Auto-dismiss (ms) for the settled toast; overridden per-result below. */
+  duration?: number
+  /** Auto-dismiss (ms) for the success toast (wins over `duration`/`timing`). */
+  successDuration?: number
+  /** Auto-dismiss (ms) for the error toast (wins over `duration`/`timing`). */
+  errorDuration?: number
+  /** Runs once when the promise settles (either way), after the toast updates. */
+  finally?: () => void
   classNames?: GooeyToastClassNames
   fillColor?: string
   borderColor?: string
@@ -182,6 +221,8 @@ export interface GooeyToasterProps {
   haptics?: boolean
   /** Max dismissed toasts kept for replay (0 disables). Default 20. */
   historyLimit?: number
+  /** Default for per-toast `showTimestamp` (each toast can still override). */
+  showTimestamp?: boolean
   /**
    * Collapse repeated identical toasts into one with a count badge + pulse
    * instead of stacking them. Matches on type + title + string description.

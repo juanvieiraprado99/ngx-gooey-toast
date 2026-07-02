@@ -162,6 +162,11 @@ export function lerpDims(a: Dims, b: Dims, t: number): Dims {
         [class.ta-right]="isRight() && !isCenter()"
         [class.expanded]="showBody()"
       >
+        @if (customTpl(); as tpl) {
+          <div class="custom-body" [class]="cn()?.description" [attr.aria-label]="effectiveTitle()">
+            <ng-container [ngTemplateOutlet]="$any(tpl)" />
+          </div>
+        } @else {
         <div
           #header
           class="header"
@@ -220,6 +225,7 @@ export function lerpDims(a: Dims, b: Dims, t: number): Dims {
           effectiveShowTimestamp()
         ) {
           <div class="timestamp timestamp-line">{{ timestamp() }}</div>
+        }
         }
 
         @if (showBody() && (hasAction() || hasCancel())) {
@@ -290,6 +296,11 @@ export class GooeyToastComponent implements OnDestroy {
   readonly customIconRaw = computed(() => this.entry().icon())
   private readonly entryShowTimestamp = computed(() => this.entry().showTimestamp())
   readonly count = computed(() => this.entry().count())
+  /** Fully custom body template (from `toast.custom()`); replaces the header. */
+  readonly customTpl = computed(() => this.entry().custom)
+  private readonly isCustom = computed(() => Boolean(this.customTpl()))
+  /** `false` blocks user-initiated dismissal (swipe / close / Escape). */
+  readonly dismissible = computed(() => this.entry().dismissible !== false)
 
   // --- Metaball merge: let the toaster clone this toast's blob ------------
   readonly mergeMode = computed(() => this.service.mergeBlobs())
@@ -336,7 +347,9 @@ export class GooeyToastComponent implements OnDestroy {
     () => this.entry().showProgress ?? this.service.showProgress(),
   )
   private readonly closeButtonSetting = computed(() => this.service.closeButton())
-  readonly showCloseButton = computed(() => this.closeButtonSetting() !== false)
+  readonly showCloseButton = computed(
+    () => this.closeButtonSetting() !== false && this.dismissible(),
+  )
   readonly closeOnRight = computed(() =>
     this.isRight()
       ? this.closeButtonSetting() !== 'top-right'
@@ -391,7 +404,7 @@ export class GooeyToastComponent implements OnDestroy {
   readonly hasAction = computed(() => Boolean(this.effectiveAction()))
   readonly isExpanded = computed(
     () =>
-      (this.hasDescription() || this.hasAction() || this.hasCancel()) &&
+      (this.hasDescription() || this.hasAction() || this.hasCancel() || this.isCustom()) &&
       !this.dismissing(),
   )
   readonly effectiveShowTimestamp = this.entryShowTimestamp
@@ -452,6 +465,7 @@ export class GooeyToastComponent implements OnDestroy {
   private swipeCtrl: AnimationController | null = null
   private resizeObs: ResizeObserver | null = null
   private leaving = false
+  private measureCatchupPending = false
   /** Static horizontal content padding (fixed in CSS) — read once, then reused. */
   private contentPadX: number | null = null
 
@@ -497,7 +511,16 @@ export class GooeyToastComponent implements OnDestroy {
       this.count()
       untracked(() => {
         this.measure()
-        this.schedule(() => this.measure(), 100) // catch-up after paint
+        // Catch-up after paint. Deduped: rapid prop changes (title + phase +
+        // description in one update) each force 2 reflows in measure() — one
+        // pending catch-up covers them all.
+        if (!this.measureCatchupPending) {
+          this.measureCatchupPending = true
+          this.schedule(() => {
+            this.measureCatchupPending = false
+            this.measure()
+          }, 100)
+        }
       })
     })
 
@@ -550,7 +573,8 @@ export class GooeyToastComponent implements OnDestroy {
       const actionSuccess = this.actionSuccess()
       const dismissing = this.dismissing()
       const hovered = this.hovered()
-      const containerHovered = this.containerHovered()
+      // A hidden tab pauses the timer exactly like hovering the stack does.
+      const containerHovered = this.containerHovered() || !this.service.pageVisible()
       // Track duration so a mutable change (update()/promise settle) re-arms.
       this.entry().duration()
       untracked(() =>
@@ -600,7 +624,8 @@ export class GooeyToastComponent implements OnDestroy {
       const phase = this.effectivePhase()
       const actionSuccess = this.actionSuccess()
       const hovered = this.hovered()
-      const containerHovered = this.containerHovered()
+      // A hidden tab pauses the timer exactly like hovering the stack does.
+      const containerHovered = this.containerHovered() || !this.service.pageVisible()
       // Track duration so a mutable change (update()) re-arms the timer.
       this.entry().duration()
       untracked(() =>
@@ -670,19 +695,20 @@ export class GooeyToastComponent implements OnDestroy {
   private restartDismissTimer(): void {
     this.remaining = null
     this.simpleRemaining = null
+    const paused = this.containerHovered() || !this.service.pageVisible()
     this.armSimpleDismiss(
       this.isExpanded(),
       this.effectivePhase(),
       this.actionSuccess(),
       this.hovered(),
-      this.containerHovered(),
+      paused,
     )
     this.armPreDismiss(
       this.showBody(),
       this.actionSuccess(),
       this.dismissing(),
       this.hovered(),
-      this.containerHovered(),
+      paused,
     )
   }
 
@@ -772,7 +798,8 @@ export class GooeyToastComponent implements OnDestroy {
     const header = this.headerRef()?.nativeElement
     const content = this.contentRef()?.nativeElement
     const wrapper = this.wrapperRef()?.nativeElement
-    if (!header || !content) return
+    // Custom toasts render no header; their "pill" is the full content width.
+    if (!content || (!header && !this.isCustom())) return
 
     const savedW = wrapper?.style.width ?? ''
     const savedOv = content.style.overflow
@@ -788,9 +815,9 @@ export class GooeyToastComponent implements OnDestroy {
       this.contentPadX = parseFloat(cs.paddingLeft) + parseFloat(cs.paddingRight)
     }
     const paddingX = this.contentPadX
-    const pw = header.offsetWidth + paddingX
     const bw = content.offsetWidth
     const th = content.offsetHeight
+    const pw = header ? header.offsetWidth + paddingX : bw
 
     if (wrapper) wrapper.style.width = savedW
     content.style.overflow = savedOv
@@ -990,7 +1017,9 @@ export class GooeyToastComponent implements OnDestroy {
   // ------------------------------------------- E7: expand delay / collapse morph
   private onExpandedChange(isExpanded: boolean): void {
     if (isExpanded) {
-      const delay = this.prefersReducedMotion() ? 0 : 330
+      // Custom toasts have no pill phase (nothing meaningful to show at 34px —
+      // the template would render clipped), so expand immediately.
+      const delay = this.prefersReducedMotion() || this.isCustom() ? 0 : 330
       this.schedule(() => this.showBody.set(true), delay)
       return
     }
@@ -1100,6 +1129,11 @@ export class GooeyToastComponent implements OnDestroy {
     this.driveProgress(delay, true, fresh)
     this.dismissTimer = setTimeout(() => {
       this.remaining = null
+      // A custom toast has no header to collapse into — leave directly.
+      if (this.isCustom()) {
+        this.leave('auto')
+        return
+      }
       this.expandedDims = { ...this.aDims }
       this.collapsing = true
       this.preDismiss = true
@@ -1187,7 +1221,9 @@ export class GooeyToastComponent implements OnDestroy {
       this.flush()
       return
     }
-    if (this.prefersReducedMotion()) {
+    // Custom toasts skip the pill→blob morph entirely (no pill state exists);
+    // their entrance is the stack's animate.enter + the E5 landing squish.
+    if (this.prefersReducedMotion() || this.isCustom()) {
       this.pillResizeCtrl?.stop()
       this.morphCtrl?.stop()
       this.morphT = 1
@@ -1237,7 +1273,7 @@ export class GooeyToastComponent implements OnDestroy {
     // Toasts with body content are owned by the E8/E10 collapse path. During the
     // collapse `isExpanded` flips false, which would otherwise wake this simple
     // path and restart the progress bar mid-dismiss. Bail — E8 owns the bar.
-    if (this.hasDescription() || this.hasAction() || this.hasCancel()) return
+    if (this.hasDescription() || this.hasAction() || this.hasCancel() || this.isCustom()) return
     if (isExpanded || phase === 'loading' || actionSuccess) {
       this.driveProgress(0, false)
       return
@@ -1349,7 +1385,7 @@ export class GooeyToastComponent implements OnDestroy {
 
   private readonly SWIPE_THRESHOLD = 100
   onPointerDown(e: PointerEvent): void {
-    if (!this.service.swipeToDismiss() || !e.isPrimary) return
+    if (!this.service.swipeToDismiss() || !e.isPrimary || !this.dismissible()) return
     this.swipeCtrl?.stop()
     this.swipeStart = { x: e.clientX, y: e.clientY }
     this.swipeSamples = [{ d: 0, t: performance.now() }]

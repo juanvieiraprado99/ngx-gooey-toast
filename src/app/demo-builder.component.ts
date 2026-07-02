@@ -304,11 +304,13 @@ export class DemoBuilderComponent {
   protected readonly springOn = signal(true)
   protected readonly bounce = signal(0.4)
   protected readonly showTimestamp = signal(true)
+  protected readonly dismissible = signal(true)
 
   protected readonly toggles = [
     { label: 'Show Progress', value: this.showProgress },
     { label: 'Close on Escape', value: this.closeOnEscape },
     { label: 'Show Timestamp', value: this.showTimestamp },
+    { label: 'Dismissible', value: this.dismissible },
     { label: 'Close Button', value: this.closeButtonOn },
     { label: 'Coalesce Duplicates', value: this.coalesceDuplicates },
     { label: 'Merge Blobs', value: this.merge },
@@ -338,6 +340,7 @@ export class DemoBuilderComponent {
     if (this.springOn()) opts.bounce = this.bounce()
     // Always set — entry default is true, so omitting can't turn it off.
     opts.showTimestamp = this.showTimestamp()
+    if (!this.dismissible()) opts.dismissible = false
     return opts
   }
 
@@ -411,6 +414,7 @@ export class DemoBuilderComponent {
     o.push(`spring: ${this.springOn()}`)
     if (this.springOn()) o.push(`bounce: ${this.bounce().toFixed(2)}`)
     if (!this.showTimestamp()) o.push(`showTimestamp: false`)
+    if (!this.dismissible()) o.push(`dismissible: false`)
     return o
   }
 

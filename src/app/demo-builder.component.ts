@@ -31,7 +31,6 @@ const PRESETS: AnimationPresetName[] = ['smooth', 'bouncy', 'subtle', 'snappy']
         <p>Design and test your toast in real time.</p>
       </header>
 
-      <!-- Position -->
       <div class="group" role="group" aria-label="Position">
         <span class="label">Position</span>
         <div class="pills">
@@ -47,7 +46,6 @@ const PRESETS: AnimationPresetName[] = ['smooth', 'bouncy', 'subtle', 'snappy']
         </div>
       </div>
 
-      <!-- Type -->
       <div class="group" role="group" aria-label="Type">
         <span class="label">Type</span>
         <div class="pills">
@@ -64,7 +62,6 @@ const PRESETS: AnimationPresetName[] = ['smooth', 'bouncy', 'subtle', 'snappy']
         </div>
       </div>
 
-      <!-- Title -->
       <div class="group">
         <label class="label" for="b-title">Title</label>
         <input
@@ -76,7 +73,6 @@ const PRESETS: AnimationPresetName[] = ['smooth', 'bouncy', 'subtle', 'snappy']
         />
       </div>
 
-      <!-- Description -->
       <div class="group">
         <div class="row">
           <label class="label inline" for="b-desc-on">Description</label>
@@ -101,7 +97,6 @@ const PRESETS: AnimationPresetName[] = ['smooth', 'bouncy', 'subtle', 'snappy']
         }
       </div>
 
-      <!-- Action -->
       <div class="group">
         <div class="row">
           <label class="label inline accent" for="b-action-on">Action Button</label>
@@ -117,7 +112,6 @@ const PRESETS: AnimationPresetName[] = ['smooth', 'bouncy', 'subtle', 'snappy']
         </div>
       </div>
 
-      <!-- Style -->
       <div class="group">
         <span class="label">Style</span>
         <div class="row">
@@ -153,7 +147,6 @@ const PRESETS: AnimationPresetName[] = ['smooth', 'bouncy', 'subtle', 'snappy']
         </div>
       </div>
 
-      <!-- Timing -->
       <div class="group">
         <span class="label">Timing</span>
         <div class="row">
@@ -172,7 +165,6 @@ const PRESETS: AnimationPresetName[] = ['smooth', 'bouncy', 'subtle', 'snappy']
         />
       </div>
 
-      <!-- Preset -->
       <div class="group" role="group" aria-label="Animation preset">
         <span class="label">Animation Preset</span>
         <div class="pills">
@@ -188,7 +180,6 @@ const PRESETS: AnimationPresetName[] = ['smooth', 'bouncy', 'subtle', 'snappy']
         </div>
       </div>
 
-      <!-- Spring -->
       <div class="group">
         <div class="row">
           <span class="label inline">Spring Effect</span>
@@ -219,7 +210,6 @@ const PRESETS: AnimationPresetName[] = ['smooth', 'bouncy', 'subtle', 'snappy']
         }
       </div>
 
-      <!-- Theme -->
       <div class="group" role="group" aria-label="Theme">
         <span class="label">Theme</span>
         <div class="pills">
@@ -240,7 +230,6 @@ const PRESETS: AnimationPresetName[] = ['smooth', 'bouncy', 'subtle', 'snappy']
         </div>
       </div>
 
-      <!-- Boolean toggles -->
       @for (tg of toggles; track tg.label) {
         <div class="row toggle-row">
           <span class="label inline">{{ tg.label }}</span>
@@ -272,10 +261,6 @@ export class DemoBuilderComponent {
   protected readonly types = TYPES
   protected readonly presets = PRESETS
 
-  // Toaster-level config. Public because the <gooey-toaster> now lives in
-  // DemoComponent (outside the sticky builder column, which would otherwise
-  // trap the fixed toaster's z-index behind the header) and reads these via
-  // viewChild.
   readonly position = signal<GooeyPosition>('top-left')
   readonly theme = signal<'light' | 'dark'>('light')
   readonly showProgress = signal(false)
@@ -285,11 +270,11 @@ export class DemoBuilderComponent {
   readonly merge = signal(false)
   readonly newestFirst = signal(true)
   readonly haptics = signal(false)
+  readonly richColors = signal(false)
   readonly closeButton = computed<boolean | 'top-right'>(() =>
     this.closeButtonOn() ? 'top-right' : false,
   )
 
-  // Per-toast fields
   protected readonly type = signal<GooeyToastType>('success')
   protected readonly title = signal('Changes saved')
   protected readonly descriptionOn = signal(true)
@@ -313,6 +298,7 @@ export class DemoBuilderComponent {
     { label: 'Dismissible', value: this.dismissible },
     { label: 'Close Button', value: this.closeButtonOn },
     { label: 'Coalesce Duplicates', value: this.coalesceDuplicates },
+    { label: 'Rich Colors', value: this.richColors },
     { label: 'Merge Blobs', value: this.merge },
     { label: 'Newest nearest edge', value: this.newestFirst },
     { label: 'Haptics (mobile)', value: this.haptics },
@@ -338,16 +324,12 @@ export class DemoBuilderComponent {
     opts.preset = this.preset()
     opts.spring = this.springOn()
     if (this.springOn()) opts.bounce = this.bounce()
-    // Always set — entry default is true, so omitting can't turn it off.
     opts.showTimestamp = this.showTimestamp()
     if (!this.dismissible()) opts.dismissible = false
     return opts
   }
 
   protected selectPreset(p: AnimationPresetName): void {
-    // Presets only vary `bounce` (all spring:true). Since the builder always
-    // sends the slider's bounce (which overrides preset.bounce), sync the slider
-    // to the preset so the choice is actually reflected.
     this.preset.set(p)
     this.springOn.set(animationPresets[p].spring)
     this.bounce.set(animationPresets[p].bounce)
@@ -383,7 +365,9 @@ export class DemoBuilderComponent {
 
   protected readonly code = computed(() => {
     const lines: string[] = []
-    lines.push(`<gooey-toaster [position]="'${this.position()}'" [theme]="'${this.theme()}'" />`)
+    const toasterAttrs = [`[position]="'${this.position()}'"`, `[theme]="'${this.theme()}'"`]
+    if (this.richColors()) toasterAttrs.push('[richColors]="true"')
+    lines.push(`<gooey-toaster ${toasterAttrs.join(' ')} />`)
     lines.push('')
 
     const opts = this.optionLinesForCode()

@@ -1,4 +1,10 @@
-import { Injectable, signal, type TemplateRef, type WritableSignal } from '@angular/core'
+import {
+  Injectable,
+  signal,
+  type OnDestroy,
+  type TemplateRef,
+  type WritableSignal,
+} from '@angular/core'
 import { DEFAULT_DISPLAY_DURATION } from './gooey-toast.types'
 import type {
   AnimationPresetName,
@@ -28,7 +34,7 @@ export function hapticPattern(type: GooeyToastType): number[] {
     case 'success':
       return [14]
     default:
-      return [10] // info / default
+      return [10]
   }
 }
 
@@ -97,7 +103,7 @@ interface QueueItem {
  * its inputs. Call `success()/error()/…` from anywhere via DI.
  */
 @Injectable({ providedIn: 'root' })
-export class GooeyToastService {
+export class GooeyToastService implements OnDestroy {
   // --- Global config (written by <gooey-toaster>, read by toasts) ----------
   readonly position = signal<GooeyPosition>('top-right')
   readonly dir = signal<'ltr' | 'rtl'>('ltr')
@@ -115,6 +121,8 @@ export class GooeyToastService {
   readonly defaultDuration = signal(DEFAULT_DISPLAY_DURATION)
   readonly coalesceDuplicates = signal(false)
   readonly mergeBlobs = signal(false)
+  /** Paint typed toasts with a per-type fill (green/red/…) instead of theme fill. */
+  readonly richColors = signal(false)
   readonly haptics = signal(false)
   readonly historyLimit = signal(20)
   /** Global default for per-toast `showTimestamp`. */
@@ -126,12 +134,25 @@ export class GooeyToastService {
    */
   readonly pageVisible = signal(true)
 
+  /** When true, all auto-dismiss timers are held (via `pauseAll()`). */
+  readonly paused = signal(false)
+
+  /** Number of toasts waiting in the overflow queue (not yet on screen). */
+  readonly queueSize = signal(0)
+
+  private readonly onVisibilityChange = () => this.pageVisible.set(!document.hidden)
+
   constructor() {
     if (typeof document !== 'undefined' && typeof document.addEventListener === 'function') {
       this.pageVisible.set(!document.hidden)
-      document.addEventListener('visibilitychange', () =>
-        this.pageVisible.set(!document.hidden),
-      )
+      document.addEventListener('visibilitychange', this.onVisibilityChange)
+    }
+  }
+
+  /** Called when the owning injector is destroyed (app teardown, tests, MFEs). */
+  ngOnDestroy(): void {
+    if (typeof document !== 'undefined' && typeof document.removeEventListener === 'function') {
+      document.removeEventListener('visibilitychange', this.onVisibilityChange)
     }
   }
 
@@ -257,21 +278,15 @@ export class GooeyToastService {
       showTimestamp: data.showTimestamp,
       onDismiss: data.onDismiss,
       onAutoClose: data.onAutoClose,
-      // Stay open while loading — Infinity arms neither auto-dismiss path (E14
-      // guards on phase, but an expanded loading toast with a description would
-      // otherwise collapse via E8 on the default duration). On settle we set a
-      // finite duration so the result toast auto-closes.
       duration: Number.POSITIVE_INFINITY,
     })
-    // Duration applied to the settled (success/error) toast; per-result
-    // overrides (successDuration/errorDuration) win over the shared value.
     const settleDuration =
       data.duration ?? data.timing?.displayDuration ?? this.defaultDuration()
     const runFinally = () => {
       try {
         data.finally?.()
-      } catch {
-        /* callback errors must not break the toast */
+      } catch (err) {
+        console.error('[ngx-gooey-toast] promise finally callback threw', err)
       }
     }
 
@@ -294,7 +309,6 @@ export class GooeyToastService {
         entry.duration.set(data.successDuration ?? settleDuration)
         this.announce(this.message(title, desc), 'polite')
         this.triggerHaptic('success')
-        // A promise can't be re-awaited; replay re-shows the settled toast.
         this.replayFns.set(id, () =>
           this.create(title, 'success', { description: desc, action: data.action?.success }),
         )
@@ -358,7 +372,6 @@ export class GooeyToastService {
     })
     this.announce(options.ariaLabel, 'polite')
     this.triggerHaptic('default')
-    // Replay re-fires with the same TemplateRef (refs preserved) as a new toast.
     this.replayFns.set(id, () => this.custom(content, { ...options, id: undefined }))
     this.push(entry)
     return id
@@ -390,10 +403,7 @@ export class GooeyToastService {
     if ('cancel' in options) entry.cancel.set(options.cancel ?? undefined)
     if ('icon' in options) entry.icon.set(options.icon ?? undefined)
     if (options.showTimestamp !== undefined) entry.showTimestamp.set(options.showTimestamp)
-    // Mutable duration: re-arm the auto-dismiss timers (E8/E14 track it).
     if (options.duration !== undefined) entry.duration.set(options.duration)
-    // Announce when the title OR description changed so SR users hear in-place
-    // updates that don't touch the title (e.g. a description- or type-only update).
     if (options.title !== undefined || options.description !== undefined) {
       this.announce(
         this.message(entry.title(), entry.description()),
@@ -415,7 +425,6 @@ export class GooeyToastService {
     if (idOrFilter != null && typeof idOrFilter === 'object') {
       const types = Array.isArray(idOrFilter.type) ? idOrFilter.type : [idOrFilter.type]
       const set = new Set<GooeyToastType>(types)
-      // Drop matching queued items
       for (let i = this.queue.length - 1; i >= 0; i--) {
         if (set.has(this.queue[i].entry.type())) this.dropQueued(i)
       }
@@ -441,10 +450,11 @@ export class GooeyToastService {
   private dropQueued(index: number): void {
     const [item] = this.queue.splice(index, 1)
     if (!item) return
+    this.queueSize.set(this.queue.length)
     try {
       item.entry.onDismiss?.(item.entry.id)
-    } catch {
-      /* callback errors must not break the queue */
+    } catch (err) {
+      console.error('[ngx-gooey-toast] onDismiss callback threw', err)
     }
     this.replayFns.delete(item.entry.id)
   }
@@ -459,17 +469,16 @@ export class GooeyToastService {
     if (reason === 'auto') {
       try {
         entry.onAutoClose?.(id)
-      } catch {
-        /* callback errors must not break the queue */
+      } catch (err) {
+        console.error('[ngx-gooey-toast] onAutoClose callback threw', err)
       }
     }
     try {
       entry.onDismiss?.(id)
-    } catch {
-      /* callback errors must not break the queue */
+    } catch (err) {
+      console.error('[ngx-gooey-toast] onDismiss callback threw', err)
     }
 
-    // Capture into history (newest first) for replay; evict oldest past the cap.
     const limit = this.historyLimit()
     const fn = this.replayFns.get(id)
     if (limit > 0 && fn) {
@@ -522,6 +531,20 @@ export class GooeyToastService {
   }
 
   /**
+   * Pause every toast's auto-dismiss timer until `resumeAll()` (or user hover /
+   * focus, which already pause). Useful while a modal/menu is open.
+   * @example toast.pauseAll(); openDialog().finally(() => toast.resumeAll())
+   */
+  pauseAll(): void {
+    this.paused.set(true)
+  }
+
+  /** Resume auto-dismiss timers paused by `pauseAll()`. */
+  resumeAll(): void {
+    this.paused.set(false)
+  }
+
+  /**
    * Push a message to the screen-reader live regions without showing a toast.
    * @param politeness `'polite'` waits for a pause; `'assertive'` interrupts.
    */
@@ -539,9 +562,6 @@ export class GooeyToastService {
   ): string | number {
     const id = options?.id ?? this.genId()
 
-    // Reusing a live/queued toast's id updates that toast in place (sonner
-    // semantics) — stacking a second entry with the same id would break
-    // `@for track t.id` (duplicate key) and make find()/dismiss() ambiguous.
     if (options?.id != null) {
       const existing = this.find(options.id)
       if (existing) {
@@ -562,22 +582,22 @@ export class GooeyToastService {
       }
     }
 
-    // Coalesce: a matching live toast absorbs the duplicate (count badge +
-    // pulse + timer restart) instead of stacking a new one.
     const coalesce = options?.coalesce ?? this.coalesceDuplicates()
     if (coalesce && options?.id == null) {
       const key = this.coalesceKey(type, title, options?.description)
       if (key != null) {
         const matches = (t: GooeyToastEntry) =>
           this.coalesceKey(t.type(), t.title(), t.description()) === key
-        // Check live toasts AND the overflow queue, so bursts past the
-        // visible cap still collapse instead of stacking queued duplicates.
         const existing =
           this.toasts().find(matches) ?? this.queue.find((q) => matches(q.entry))?.entry
         if (existing) {
           existing.count.update((n) => n + 1)
           existing.pulse.update((n) => n + 1)
-          this.announce(this.message(title, options?.description), this.politeness(type))
+          // Screen readers can't see the count badge (aria-hidden) — say it.
+          this.announce(
+            `${this.message(title, options?.description)} (${existing.count()}×)`,
+            this.politeness(type),
+          )
           this.triggerHaptic(type)
           return existing.id
         }
@@ -614,9 +634,6 @@ export class GooeyToastService {
     })
     this.announce(this.message(title, options?.description), this.politeness(type))
     this.triggerHaptic(type)
-    // Replay re-fires the toast as a fresh one (no id → never updates in place).
-    // It reads the entry's *current* state, so a toast mutated via `update()` is
-    // replayed in its latest form; styling refs on the entry are preserved.
     this.replayFns.set(id, () => this.replayEntry(entry))
     this.push(entry)
     return id
@@ -717,6 +734,7 @@ export class GooeyToastService {
       this.queue.shift() // drop-oldest
     }
     this.queue.push(item)
+    this.queueSize.set(this.queue.length)
     return true
   }
 
@@ -726,6 +744,7 @@ export class GooeyToastService {
       const next = this.queue.shift()!
       this.toasts.update((list) => [...list, next.entry])
     }
+    this.queueSize.set(this.queue.length)
   }
 
   private find(id: string | number): GooeyToastEntry | undefined {
@@ -737,8 +756,6 @@ export class GooeyToastService {
 
   private idSeq = 0
   private genId(): string {
-    // Monotonic counter — collision-proof within the (root-singleton) service,
-    // unlike the previous Math.random() slug.
     return `gooey-${++this.idSeq}`
   }
 
@@ -776,7 +793,6 @@ export class GooeyToastService {
     try {
       navigator.vibrate(hapticPattern(type))
     } catch {
-      /* vibrate can throw on some browsers — ignore */
     }
   }
 }

@@ -25,15 +25,9 @@ interface Group {
 @Component({
   selector: 'app-demo',
   changeDetection: ChangeDetectionStrategy.OnPush,
-  // ng-template content stamped inside <gooey-toast> (custom toasts, TemplateRef
-  // descriptions) gets the TOAST component's _ngcontent attribute, not this
-  // component's — so emulated-scoped styles would never match it. Unscope them.
   encapsulation: ViewEncapsulation.None,
   imports: [DemoBuilderComponent, GooeyToasterComponent],
   template: `
-    <!-- Toaster lives here (not inside the sticky .builder-col, whose stacking
-         context would trap the fixed toaster behind the header). It reads the
-         builder's config signals via viewChild. -->
     @if (builder(); as b) {
       <gooey-toaster
         [position]="b.position()"
@@ -43,6 +37,7 @@ interface Group {
         [closeOnEscape]="b.closeOnEscape()"
         [closeButton]="b.closeButton()"
         [coalesceDuplicates]="b.coalesceDuplicates()"
+        [richColors]="b.richColors()"
         [merge]="b.merge()"
         [gap]="b.merge() ? 2 : 14"
         [stackDirection]="b.newestFirst() ? 'newest-first' : 'oldest-first'"
@@ -51,7 +46,6 @@ interface Group {
     }
 
     <div class="playground">
-      <!-- Left: categorized examples -->
       <div class="examples">
         @for (g of groups; track g.heading) {
           <section class="ex-group">
@@ -65,13 +59,11 @@ interface Group {
         }
       </div>
 
-      <!-- Right: interactive builder -->
       <div #builderCol id="builder" class="builder-col">
         <app-demo-builder />
       </div>
     </div>
 
-    <!-- Rich custom body used by the "Custom Component Body" example -->
     <ng-template #customBody>
       <div class="demo-rich-body">
         <strong>Rich content</strong> — any Angular
@@ -79,8 +71,6 @@ interface Group {
       </div>
     </ng-template>
 
-    <!-- Fully custom toast used by the "Custom Toast" examples: the template IS
-         the whole body (toast.custom) — no built-in header/icon/description. -->
     <ng-template #customCard>
       <div class="custom-card">
         <div class="custom-card-icon">📦</div>
@@ -94,7 +84,6 @@ interface Group {
       </div>
     </ng-template>
 
-    <!-- Chat-style message notification -->
     <ng-template #customMessage>
       <div class="msg-card">
         <div class="msg-avatar">AL</div>
@@ -108,7 +97,6 @@ interface Group {
       </div>
     </ng-template>
 
-    <!-- Dark "now playing" card (pairs with fillColor: '#1a1a1a') -->
     <ng-template #customPlayer>
       <div class="player-card">
         <div class="player-art">🎵</div>
@@ -123,7 +111,6 @@ interface Group {
       </div>
     </ng-template>
 
-    <!-- Gamified achievement with gradient text + XP bar -->
     <ng-template #customAchievement>
       <div class="ach-card">
         <div class="ach-badge">🏆</div>
@@ -138,7 +125,6 @@ interface Group {
       </div>
     </ng-template>
 
-    <!-- Consent-style: only its own buttons close it (dismissible: false) -->
     <ng-template #customConsent>
       <div class="consent-card">
         <div class="consent-text">
@@ -165,12 +151,9 @@ interface Group {
       gap: 2rem;
       align-items: start;
     }
-    /* Let columns shrink so wide children (code, pills) scroll/wrap internally
-       instead of expanding the track past the viewport (mobile h-scroll). */
     .playground > * {
       min-width: 0;
     }
-    /* Keep the builder clear of the sticky header when anchored to. */
     .builder-col {
       scroll-margin-top: 7rem;
     }
@@ -178,18 +161,17 @@ interface Group {
       .playground {
         grid-template-columns: 1fr 1fr;
       }
-      /* Only the builder column scrolls when it's taller than the viewport. */
       .builder-col {
         position: sticky;
         top: 1.5rem;
         max-height: calc(100vh - 3rem);
         overflow-y: auto;
         padding-right: 0.25rem;
-        scrollbar-width: none; /* Firefox */
-        -ms-overflow-style: none; /* old Edge */
+        scrollbar-width: none;
+        -ms-overflow-style: none;
       }
       .builder-col::-webkit-scrollbar {
-        display: none; /* Chrome/Safari */
+        display: none;
       }
     }
     .ex-group + .ex-group {
@@ -234,7 +216,6 @@ interface Group {
       font-family: ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
       font-size: 0.78rem;
     }
-    /* toast.custom() card — consumer-owned layout inside the blob */
     .custom-card {
       display: flex;
       align-items: center;
@@ -277,7 +258,6 @@ interface Group {
       outline-offset: 2px;
     }
 
-    /* Chat message card */
     .msg-card {
       display: flex;
       align-items: center;
@@ -328,7 +308,6 @@ interface Group {
       background: #f4f4f5;
     }
 
-    /* Dark "now playing" card — explicit light text (blob fill is #1a1a1a) */
     .player-card {
       display: flex;
       align-items: center;
@@ -385,7 +364,6 @@ interface Group {
       background: rgba(255, 255, 255, 0.22);
     }
 
-    /* Achievement card */
     .ach-card {
       display: flex;
       align-items: center;
@@ -432,7 +410,6 @@ interface Group {
       opacity: 0.65;
     }
 
-    /* Consent card — its own buttons are the only way out */
     .consent-card {
       padding: 0.15rem 0.1rem;
       max-width: 280px;
@@ -493,9 +470,6 @@ export class DemoComponent {
   protected readonly builder = viewChild(DemoBuilderComponent)
 
   constructor() {
-    // When navigating to #builder, reset the (independently scrollable) builder
-    // column to the top so the user always lands on the start of the controls,
-    // not wherever they'd previously scrolled it.
     this.router.events
       .pipe(
         filter((e): e is Scroll => e instanceof Scroll),
@@ -512,6 +486,49 @@ export class DemoComponent {
   }
 
   protected readonly groups: Group[] = [
+    {
+      heading: 'New Features (press Alt+T to focus the stack)',
+      items: [
+        {
+          label: 'Async action',
+          run: () =>
+            this.toast.show('Save changes?', {
+              description: 'The Save button waits for the server, then confirms.',
+              duration: Number.POSITIVE_INFINITY,
+              action: {
+                label: 'Save',
+                successLabel: 'Saved!',
+                onClick: () =>
+                  new Promise<void>((resolve) => setTimeout(resolve, 1500)),
+              },
+            }),
+        },
+        {
+          label: 'Rich colors (toggle it on)',
+          run: () => {
+            this.toast.success('Deploy succeeded')
+            this.toast.error('Build failed')
+            this.toast.warning('Quota almost reached')
+            this.toast.info('New version available')
+          },
+        },
+        {
+          label: 'Pause 3s, then resume',
+          run: () => {
+            this.toast.info('Timers paused for 3s', { description: 'pauseAll() → resumeAll()' })
+            this.toast.pauseAll()
+            setTimeout(() => this.toast.resumeAll(), 3000)
+          },
+        },
+        {
+          label: 'Queue size',
+          run: () => {
+            for (let i = 0; i < 9; i++) this.toast.info(`Queued item ${i + 1}`)
+            this.toast.warning(`${this.toast.queueSize()} toast(s) waiting in the queue`)
+          },
+        },
+      ],
+    },
     {
       heading: 'Toast Types',
       items: [
@@ -560,9 +577,7 @@ export class DemoComponent {
               action: {
                 label: 'Copy link',
                 successLabel: 'Copied!',
-                onClick: () => {
-                  /* copy to clipboard */
-                },
+                onClick: () => {},
               },
             }),
         },
@@ -848,8 +863,6 @@ export class DemoComponent {
   }
 
   protected runUpdate(to: 'success' | 'error' = 'success'): void {
-    // Opt out of coalesce: this toast is tracked by id and updated in place, so
-    // it must not merge with another identical "Connecting…" toast.
     const id = this.toast.info('Connecting…', { coalesce: false })
     const next =
       to === 'error'
@@ -859,8 +872,6 @@ export class DemoComponent {
   }
 
   protected runLoading(fail: boolean): void {
-    // Sticky spinner you resolve yourself; give it a finite duration on resolve
-    // so the settled result auto-closes.
     const id = this.toast.loading('Uploading…')
     const next = fail
       ? { title: 'Upload failed', type: 'error' as const, duration: 4000 }

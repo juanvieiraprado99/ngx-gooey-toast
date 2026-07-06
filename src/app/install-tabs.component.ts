@@ -57,8 +57,6 @@ const COMMANDS: Record<PackageManager, string> = {
       border-radius: 0.6rem;
       background: rgb(240 240 240);
     }
-    /* The white pill behind the active tab. Slides between fixed-width tabs by
-       translating one tab-width per index — driven by --i off activeIndex(). */
     .slider {
       position: absolute;
       top: 0.2rem;

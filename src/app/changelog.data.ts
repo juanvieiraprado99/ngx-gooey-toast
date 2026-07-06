@@ -16,6 +16,74 @@ export interface Release {
 
 export const releases: Release[] = [
   {
+    "version": "0.4.0",
+    "date": "2026-07-05",
+    "changes": [
+      {
+        "type": "added",
+        "text": "**toast:** async action buttons — an `action.onClick` that returns a Promise shows a loading state and holds the auto-dismiss until it settles, then flips to `successLabel`"
+      },
+      {
+        "type": "added",
+        "text": "**toaster:** `richColors` input — paint typed toasts with a saturated per-type fill (success green, error red, …) and white text; a per-toast `fillColor` still wins"
+      },
+      {
+        "type": "added",
+        "text": "**toaster:** focus hotkey — a configurable `hotkey` input (default `Alt+T`) moves keyboard focus into the toast stack, where Tab reaches each toast and pauses its timer; pass `null` to disable"
+      },
+      {
+        "type": "added",
+        "text": "**service:** `pauseAll()` / `resumeAll()` — freeze and resume every toast's auto-dismiss timer programmatically (e.g. while a dialog is open)"
+      },
+      {
+        "type": "added",
+        "text": "**service:** `queueSize` signal — read how many toasts are waiting in the overflow queue behind `visibleToasts`"
+      },
+      {
+        "type": "fixed",
+        "text": "**ssr:** fix a hydration mismatch on the metaball merge filter id — the per-instance counter is now root-provided, so it resets per server request and matches the client"
+      },
+      {
+        "type": "fixed",
+        "text": "**toast:** auto-dismiss a short-duration expanded toast that previously stayed open forever when `duration` was below the expand + collapse time"
+      },
+      {
+        "type": "fixed",
+        "text": "**toast:** cancel a pending delayed expand when a toast is dismissed mid-window, so it can no longer re-expand while leaving"
+      },
+      {
+        "type": "fixed",
+        "text": "**toaster:** clear the aria-live announcement timers when the toaster is destroyed"
+      },
+      {
+        "type": "fixed",
+        "text": "**service:** detach the `visibilitychange` listener on teardown (`ngOnDestroy`)"
+      },
+      {
+        "type": "changed",
+        "text": "**toast:** reuse the cached content padding during collapse instead of another `getComputedStyle`"
+      },
+      {
+        "type": "changed",
+        "text": "**toast:** announce the running duplicate count to screen readers when toasts coalesce (the count badge is `aria-hidden`)"
+      },
+      {
+        "type": "changed",
+        "text": "**toast:** log consumer callback errors (`action`, `cancel`, `onDismiss`, `onAutoClose`, `finally`) instead of silently swallowing them"
+      }
+    ]
+  },
+  {
+    "version": "0.3.1",
+    "date": "2026-07-02",
+    "changes": [
+      {
+        "type": "added",
+        "text": "**toast:** add custom toast, dismissible flag, and mutable duration"
+      }
+    ]
+  },
+  {
     "version": "0.3.0",
     "date": "2026-06-19",
     "changes": [

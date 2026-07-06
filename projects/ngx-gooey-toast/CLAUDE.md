@@ -29,7 +29,8 @@ Per-frame data (`morphT`, `aDims`, controllers) lives in **plain fields, not sig
 
 - `gooey-morph.ts`: the blob is a **parametric path** (`morphPath`/`morphPathCenter`, `t` 0→1 pill→blob, pill height `PH=34`), memoized per-args — not an SVG filter. The filter (`feGaussianBlur`+`feColorMatrix`) is only used by the toaster's opt-in merge layer, which clones each toast's path every rAF via `getScreenCTM()` (read-all-then-write-all to avoid layout thrash).
 - `spring-animate.ts`: zero-dep `animate(from, to, opts)` clone of framer-motion's subset (analytic spring + cubic-bezier tween). Every controller must be `.stop()`ed on destroy.
-- Two auto-dismiss paths in the component: **E14** (simple pill, uses `entry.duration` directly) and **E8** (expanded blob: duration minus expand delay minus collapse time, then collapse → E10 leaves). Hover **and keyboard focus** pause both (WCAG 2.2.1); `Infinity` duration arms neither.
+- Two auto-dismiss paths in the component: **E14** (simple pill, uses `entry.duration` directly) and **E8** (expanded blob: duration minus expand delay minus collapse time, then collapse → E10 leaves). Hover **and keyboard focus** pause both (WCAG 2.2.1); `Infinity` duration arms neither. Also paused by: hidden tab (`service.pageVisible`), programmatic `service.pauseAll()` (`service.paused`), and — E8 only — an in-flight async action (`actionPending`). All fold into the effects' `containerHovered` term.
+- Optional toaster features layered on the service config: `richColors` (per-type fill via `RICH_FILL` + `[data-rich]` CSS, white text; per-toast `fillColor` still wins), `hotkey` (`matchesHotkey` parses `'alt+t'`-style combos; focuses the `tabindex=-1` `<ol>`), `queueSize` (signal mirroring the private overflow queue), `pauseAll`/`resumeAll`. Action `onClick` returning a thenable drives the async-action loading state.
 
 ### Contracts to keep
 

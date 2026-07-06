@@ -12,8 +12,6 @@ import hljs from 'highlight.js/lib/core'
 import typescript from 'highlight.js/lib/languages/typescript'
 import bash from 'highlight.js/lib/languages/bash'
 
-// Register only the languages the demo actually uses — keeps the bundle small
-// (the full highlight.js auto-bundle pulls in ~190 grammars).
 hljs.registerLanguage('typescript', typescript)
 hljs.registerLanguage('bash', bash)
 

@@ -8,6 +8,7 @@ import {
   isRichContent,
   orderStack,
   hapticPattern,
+  matchesHotkey,
 } from 'ngx-gooey-toast'
 import {
   rubberBand,
@@ -556,5 +557,79 @@ describe('GooeyToastService', () => {
     Object.defineProperty(document, 'hidden', { configurable: true, value: false })
     document.dispatchEvent(new Event('visibilitychange'))
     expect(s.pageVisible()).toBe(true)
+    s.ngOnDestroy()
+  })
+
+  it('ngOnDestroy detaches the visibilitychange listener', () => {
+    const s = new GooeyToastService()
+    s.ngOnDestroy()
+    Object.defineProperty(document, 'hidden', { configurable: true, value: true })
+    document.dispatchEvent(new Event('visibilitychange'))
+    expect(s.pageVisible()).toBe(true) // unchanged — listener is gone
+    Object.defineProperty(document, 'hidden', { configurable: true, value: false })
+  })
+
+  it('coalescing announces the running count for screen readers', () => {
+    const s = new GooeyToastService()
+    s.coalesceDuplicates.set(true)
+    s.success('Saved')
+    expect(s.announcement()?.message).toBe('Saved')
+    s.success('Saved')
+    expect(s.announcement()?.message).toBe('Saved (2×)')
+  })
+
+  it('pauseAll/resumeAll flip the paused signal', () => {
+    const s = new GooeyToastService()
+    expect(s.paused()).toBe(false)
+    s.pauseAll()
+    expect(s.paused()).toBe(true)
+    s.resumeAll()
+    expect(s.paused()).toBe(false)
+  })
+
+  it('queueSize tracks overflow, drain and dismiss', () => {
+    const s = new GooeyToastService()
+    s.visibleToasts.set(1)
+    expect(s.queueSize()).toBe(0)
+    s.info('visible')
+    const q1 = s.info('q1') // overflows
+    s.info('q2') // overflows
+    expect(s.queueSize()).toBe(2)
+    s.dismiss(q1) // drop one queued
+    expect(s.queueSize()).toBe(1)
+    s.remove(s.toasts()[0].id, 'manual') // drain one from the queue
+    expect(s.queueSize()).toBe(0)
+  })
+
+  it('dismiss() empties the queue and zeroes queueSize', () => {
+    const s = new GooeyToastService()
+    s.visibleToasts.set(1)
+    s.info('visible')
+    s.info('q1')
+    s.info('q2')
+    expect(s.queueSize()).toBe(2)
+    s.dismiss()
+    expect(s.queueSize()).toBe(0)
+  })
+})
+
+describe('matchesHotkey', () => {
+  // Real KeyboardEvents always have boolean modifier flags; default them so the
+  // strict `===` checks in matchesHotkey behave as they would in the browser.
+  const ev = (init: Partial<KeyboardEvent>) =>
+    ({ altKey: false, ctrlKey: false, shiftKey: false, metaKey: false, ...init }) as KeyboardEvent
+  it('matches a modifier + key combo', () => {
+    expect(matchesHotkey(ev({ key: 't', altKey: true }), 'alt+t')).toBe(true)
+    expect(matchesHotkey(ev({ key: 'T', altKey: true }), 'alt+t')).toBe(true) // case-insensitive
+  })
+  it('requires the exact modifier set', () => {
+    expect(matchesHotkey(ev({ key: 't' }), 'alt+t')).toBe(false) // no alt
+    expect(matchesHotkey(ev({ key: 't', altKey: true, ctrlKey: true }), 'alt+t')).toBe(false)
+  })
+  it('supports multiple modifiers', () => {
+    expect(
+      matchesHotkey(ev({ key: 'n', ctrlKey: true, shiftKey: true }), 'ctrl+shift+n'),
+    ).toBe(true)
+    expect(matchesHotkey(ev({ key: 'n', ctrlKey: true }), 'ctrl+shift+n')).toBe(false)
   })
 })

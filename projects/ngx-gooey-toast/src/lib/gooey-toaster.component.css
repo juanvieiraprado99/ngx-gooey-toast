@@ -21,7 +21,6 @@
   list-style: none;
 }
 
-/* Vertical anchoring */
 .toaster[data-position^='bottom'] {
   bottom: var(--offset, 24px);
 }
@@ -29,7 +28,6 @@
   top: var(--offset, 24px);
 }
 
-/* Horizontal anchoring + alignment */
 .toaster[data-position$='left'] {
   left: var(--offset, 24px);
   align-items: flex-start;
@@ -61,13 +59,8 @@
   .toaster[data-position$='right'] {
     right: 16px;
   }
-  /* center keeps left:50% + translateX(-50%) from the base rule — no override */
 }
 
-/* Enter / leave — slide + scale with a springy overshoot.
-   Position-aware: bottom stacks rise from below, top stacks drop from above.
-   Transform here is on the <li>; the per-frame JS squish lives on the inner
-   wrapper, so the two never write the same element. */
 .g-enter {
   animation: g-toast-in-up 0.42s cubic-bezier(0.34, 1.56, 0.64, 1) forwards;
 }
@@ -114,7 +107,6 @@
   }
 }
 
-/* Respect reduced-motion: fall back to plain fade, no slide/scale. */
 @media (prefers-reduced-motion: reduce) {
   .g-enter,
   .toaster[data-position^='top'] .g-enter {
@@ -130,9 +122,6 @@
   }
 }
 
-/* Shared goo-filtered layer for metaball merge. Painted behind the stack
-   (z-index one below .toaster) so it only contributes the necks between blobs;
-   crisp local blobs + text stay on top and readable. */
 .merge-svg {
   position: fixed;
   inset: 0;

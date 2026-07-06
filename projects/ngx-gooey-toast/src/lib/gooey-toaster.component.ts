@@ -4,6 +4,7 @@ import {
   Component,
   DestroyRef,
   ElementRef,
+  Injectable,
   afterRenderEffect,
   computed,
   effect,
@@ -27,8 +28,16 @@ import {
  * Order toasts for rendering. `newest-first` (default) puts the newest nearest
  * the anchored edge; `oldestFirst` flips it so newest enters at the far end.
  */
-/** Deterministic per-instance suffix so SVG filter ids are stable under SSR. */
-let gooeyFilterSeq = 0
+/**
+ * Deterministic per-instance suffix so SVG filter ids are stable under SSR.
+ * Root-provided (not module-level) so each server request starts at 0, exactly
+ * like the client — a module counter would drift across requests in Node and
+ * break hydration of the merge `<filter id>`.
+ */
+@Injectable({ providedIn: 'root' })
+export class GooeyFilterSeq {
+  next = 0
+}
 
 export function orderStack<T>(
   list: readonly T[],
@@ -72,10 +81,13 @@ export function orderStack<T>(
   imports: [GooeyToastComponent],
   host: {
     '(document:keydown.escape)': 'onEscape()',
+    '(document:keydown)': 'onKeydown($event)',
   },
   template: `
     <ol
+      #list
       class="toaster"
+      tabindex="-1"
       [attr.aria-label]="label()"
       [attr.data-position]="position()"
       [attr.dir]="dir()"
@@ -255,20 +267,32 @@ export class GooeyToasterComponent {
   /** Max dismissed toasts kept for replay (0 disables). */
   readonly historyLimit = input(20)
   /**
+   * Paint typed toasts with a per-type fill colour (success green, error red…)
+   * with white text, instead of the neutral theme fill. Per-toast `fillColor`
+   * still wins. Default false.
+   */
+  readonly richColors = input(false)
+  /**
+   * Keyboard shortcut that moves focus into the toast stack (then Tab reaches
+   * each toast, which pauses its timer). Format: modifiers + key joined by `+`,
+   * e.g. `'alt+t'`, `'ctrl+shift+n'`. Pass `null` to disable.
+   * @defaultValue `'alt+t'`
+   */
+  readonly hotkey = input<string | null>('alt+t')
+  /**
    * Default for per-toast timestamps (each toast can still override via
    * `GooeyToastOptions.showTimestamp`).
    * @defaultValue `true`
    */
   readonly showTimestamp = input(true)
 
-  // --- Metaball merge ------------------------------------------------------
   readonly mergeOn = computed(() => this.merge())
   /**
    * Unique per instance so multiple toasters don't share a <filter> id, yet
    * deterministic (APP_ID + a render-order counter) so server and client agree
    * and SSR hydration doesn't mismatch — unlike a Math.random() value.
    */
-  readonly filterId = `${inject(APP_ID)}-${gooeyFilterSeq++}`
+  readonly filterId = `${inject(APP_ID)}-${inject(GooeyFilterSeq).next++}`
   readonly vw = signal(typeof window !== 'undefined' ? window.innerWidth : 0)
   readonly vh = signal(typeof window !== 'undefined' ? window.innerHeight : 0)
 
@@ -294,11 +318,10 @@ export class GooeyToasterComponent {
     ),
   )
 
-  // FLIP: animate settled toasts as they shift when one enters/leaves.
+  private readonly listRef = viewChild<ElementRef<HTMLOListElement>>('list')
   private readonly itemEls = viewChildren<ElementRef<HTMLElement>>('itemEl')
   private prevTops = new Map<string, number>()
 
-  // Merge: clone each toast's blob into the shared goo-filtered layer.
   private readonly toastCmps = viewChildren(GooeyToastComponent)
   private readonly mergePaths = viewChildren<ElementRef<SVGPathElement>>('mergePath')
   private readonly mergeSvgRef = viewChild<ElementRef<SVGSVGElement>>('mergeSvg')
@@ -311,14 +334,17 @@ export class GooeyToasterComponent {
     { d: string; transform: string }
   >()
 
-  // Screen-reader announcement mirrors
   readonly politeMessage = signal('')
   readonly assertiveMessage = signal('')
   private politeClear: ReturnType<typeof setTimeout> | null = null
   private assertiveClear: ReturnType<typeof setTimeout> | null = null
 
   constructor() {
-    // Push inputs into the global config signals.
+    inject(DestroyRef).onDestroy(() => {
+      if (this.politeClear) clearTimeout(this.politeClear)
+      if (this.assertiveClear) clearTimeout(this.assertiveClear)
+    })
+
     effect(() => {
       const presetConfig = this.preset() ? animationPresets[this.preset()!] : undefined
       this.service.position.set(this.position())
@@ -339,14 +365,11 @@ export class GooeyToasterComponent {
       this.service.haptics.set(this.haptics())
       this.service.historyLimit.set(this.historyLimit())
       this.service.showTimestampDefault.set(this.showTimestamp())
+      this.service.richColors.set(this.richColors())
     })
 
-    // FLIP layout animation: when the list changes, every item that was
-    // already on screen gets translated from its previous position back to 0,
-    // so siblings glide to make room instead of snapping. The entering item is
-    // skipped here (no previous position) — its own animate.enter plays.
     afterRenderEffect(() => {
-      this.displayToasts() // re-run when the toast list changes
+      this.displayToasts()
       const reduce =
         typeof window !== 'undefined' &&
         typeof window.matchMedia === 'function' &&
@@ -374,7 +397,6 @@ export class GooeyToasterComponent {
       this.prevTops = next
     })
 
-    // Mirror announcements into the live regions, clearing after 7s.
     effect(() => {
       const a = this.service.announcement()
       if (!a) return
@@ -391,7 +413,6 @@ export class GooeyToasterComponent {
       }
     })
 
-    // Merge: run the blob-clone sync loop while merge is on and toasts exist.
     if (typeof window !== 'undefined') {
       const onResize = () => {
         this.vw.set(window.innerWidth)
@@ -403,8 +424,6 @@ export class GooeyToasterComponent {
       effect(() => {
         const on = this.service.mergeBlobs()
         const has = this.service.toasts().length > 0
-        // Track hover too: hover kicks off expand/collapse morphs, so resume
-        // per-frame syncing before the idle-throttled loop would notice.
         this.service.containerHovered()
         untracked(() => {
           if (on && has) {
@@ -419,7 +438,6 @@ export class GooeyToasterComponent {
     }
   }
 
-  // ------------------------------------------------------------- merge loop
   /**
    * Per-frame while anything moves; after ~10 unchanged frames drops to slow
    * polling (200ms) so an idle stack stops forcing layout (getScreenCTM) at
@@ -480,10 +498,6 @@ export class GooeyToasterComponent {
     const root = this.mergeSvgRef()?.nativeElement
     const rootCtm = root?.getScreenCTM()
     if (!rootCtm) return false
-    // Compose into the shared svg's OWN user space via a relative CTM. This
-    // cancels any global offset/zoom that affects both svgs equally (mobile
-    // visual-viewport offset, page zoom, device-pixel-ratio) — without it the
-    // clones drift from the real toasts on mobile.
     const inv = rootCtm.inverse()
 
     const pathById = new Map<string, SVGPathElement>()
@@ -539,7 +553,6 @@ export class GooeyToasterComponent {
   }
   onEscape(): void {
     if (!this.service.closeOnEscape()) return
-    // Newest dismissible toast — `dismissible: false` toasts are Escape-immune.
     const list = this.service.toasts()
     for (let i = list.length - 1; i >= 0; i--) {
       if (list[i].dismissible !== false) {
@@ -548,4 +561,33 @@ export class GooeyToasterComponent {
       }
     }
   }
+
+  /** Move focus into the stack when the configured hotkey fires. */
+  onKeydown(e: KeyboardEvent): void {
+    const hk = this.hotkey()
+    if (!hk || !matchesHotkey(e, hk)) return
+    if (this.service.toasts().length === 0) return
+    e.preventDefault()
+    this.listRef()?.nativeElement.focus()
+  }
+}
+
+/** Match a keyboard event against a `'mod+mod+key'` hotkey string (case-insensitive). */
+export function matchesHotkey(e: KeyboardEvent, hotkey: string): boolean {
+  const parts = hotkey.toLowerCase().split('+').map((p) => p.trim())
+  const key = parts.pop()
+  if (!key) return false
+  const want = {
+    alt: parts.includes('alt'),
+    ctrl: parts.includes('ctrl') || parts.includes('control'),
+    shift: parts.includes('shift'),
+    meta: parts.includes('meta') || parts.includes('cmd') || parts.includes('mod'),
+  }
+  return (
+    e.altKey === want.alt &&
+    e.ctrlKey === want.ctrl &&
+    e.shiftKey === want.shift &&
+    e.metaKey === want.meta &&
+    e.key.toLowerCase() === key
+  )
 }

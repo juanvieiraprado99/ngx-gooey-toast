@@ -114,7 +114,6 @@ import { SeoService } from './seo.service'
 export class ChangelogComponent implements OnInit {
   private readonly seo = inject(SeoService)
 
-  // Generated from CHANGELOG.md at build time (scripts/changelog-to-ts.mjs).
   protected readonly releases = releases
 
   ngOnInit(): void {

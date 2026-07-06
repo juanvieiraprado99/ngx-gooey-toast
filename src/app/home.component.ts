@@ -63,7 +63,6 @@ import { SeoService } from './seo.service'
       align-items: center;
       gap: 0.85rem;
     }
-    /* Brand mark: pops in on load, then bobs like a floating gooey bubble. */
     .hero-mark {
       width: 56px;
       height: 56px;
@@ -97,7 +96,6 @@ import { SeoService } from './seo.service'
         animation: none;
       }
     }
-    /* Keep anchored sections clear of the sticky header when scrolled to. */
     .anchor {
       scroll-margin-top: 7rem;
     }

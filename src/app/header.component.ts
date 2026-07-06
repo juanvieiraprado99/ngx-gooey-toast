@@ -100,15 +100,12 @@ interface NavAnchor {
     </div>
   `,
   styles: `
-    /* --m: 0 = top (full-width bar) → 1 = floating centered island.
-       Driven each frame by the toast spring engine; all chrome interpolates off it. */
     :host {
       --m: 0;
       position: sticky;
       top: 0;
       z-index: 50;
       display: block;
-      /* Side + top gap grows with --m so the island detaches from the edges. */
       padding-top: calc(var(--m) * 0.65rem);
       padding-inline: calc(var(--m) * 1rem);
     }
@@ -117,14 +114,12 @@ interface NavAnchor {
       align-items: center;
       gap: 1rem;
       flex-wrap: wrap;
-      /* 100% → 60rem, centered. */
       max-width: calc(100% - var(--m) * (100% - 60rem));
       margin-inline: auto;
       padding: 0.7rem 1rem;
       background: rgb(250 250 250 / calc(0.8 + var(--m) * 0.13));
       backdrop-filter: saturate(180%) blur(calc(12px + var(--m) * 6px));
       border: 1px solid rgb(228 228 231);
-      /* Square full-width bar (bottom border only) → fully rounded pill. */
       border-radius: calc(var(--m) * 999px);
       box-shadow: rgb(15 23 42 / calc(var(--m) * 0.1)) 0 10px 30px -8px;
       transition: none;
@@ -148,8 +143,6 @@ interface NavAnchor {
     .logo-mark {
       width: 30px;
       height: 30px;
-      /* Idle bob — the gooey blob floating like its bubbles. transform-origin
-         bottom so the hover squish reads as a "plant". */
       transform-origin: center bottom;
       animation: logo-float 3.2s ease-in-out infinite;
     }
@@ -192,7 +185,6 @@ interface NavAnchor {
       background: rgb(0 0 0 / 0.05);
       color: #18181b;
     }
-    /* Rounded-pill active state echoes the pill → blob morph. */
     .link.on {
       background: #18181b;
       color: #fff;
@@ -240,14 +232,11 @@ interface NavAnchor {
       border-left: 1px solid rgb(228 228 231);
       color: #52525b;
     }
-    /* On narrow screens drop the text labels, keep the icons + star count. */
     @media (max-width: 520px) {
       .btn .label {
         display: none;
       }
     }
-    /* On phones, hide the jump-link nav so the island stays one short row
-       (logo + GitHub/npm icons) instead of wrapping into a tall blob. */
     @media (max-width: 640px) {
       .nav {
         display: none;
@@ -268,7 +257,6 @@ export class HeaderComponent {
     { label: 'Docs', fragment: 'docs' },
   ]
 
-  // Live GitHub star count from the public API (unauthenticated: 60 req/hr per IP).
   private readonly repo = httpResource<{ stargazers_count: number }>(
     () => 'https://api.github.com/repos/juanvieiraprado99/ngx-gooey-toast',
   )
@@ -302,8 +290,6 @@ export class HeaderComponent {
       ...squishSpring(0.5, 0.5, 0.45),
       onUpdate: (v) => {
         const intensity = Math.sin(v * Math.PI)
-        // Inline transform overrides the idle float for the duration; cleared
-        // on complete so the bob resumes.
         el.style.transform = `scaleX(${1 + 0.16 * intensity}) scaleY(${1 - 0.14 * intensity})`
       },
       onComplete: () => {
@@ -313,7 +299,6 @@ export class HeaderComponent {
   }
 
   protected onScroll(): void {
-    // Mobile: header stays a static top bar — never morph to the pill island.
     if (typeof matchMedia === 'function' && matchMedia('(max-width: 640px)').matches) {
       if (this.morph() !== 0) {
         this.anim?.stop()
@@ -322,14 +307,12 @@ export class HeaderComponent {
       this.scrolled = false
       return
     }
-    // Desktop: hysteresis — enter pill above 40px, exit only below 8px; hold between.
     const y = window.scrollY
     const next = this.scrolled ? y > 8 : y > 40
     if (next === this.scrolled) return
     this.scrolled = next
     const target = next ? 1 : 0
 
-    // Reduced-motion: snap, skip the spring.
     const reduce =
       typeof matchMedia === 'function' && matchMedia('(prefers-reduced-motion: reduce)').matches
     if (reduce) {
@@ -337,7 +320,6 @@ export class HeaderComponent {
       return
     }
 
-    // Drive the morph with the same spring engine the toast uses.
     this.anim?.stop()
     this.anim = animate(this.morph(), target, {
       ...squishSpring(0.45, 0.45, 0.4),

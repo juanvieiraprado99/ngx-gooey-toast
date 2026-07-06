@@ -8,8 +8,6 @@ describe('App', () => {
   beforeEach(async () => {
     await TestBed.configureTestingModule({
       imports: [App],
-      // Mock HTTP backend: the header's GitHub-stars httpResource must not hit
-      // the real api.github.com in tests (403 rate-limit flake).
       providers: [provideRouter([]), provideHttpClient(), provideHttpClientTesting()],
     }).compileComponents();
   });
@@ -23,7 +21,6 @@ describe('App', () => {
   it('should render the header logo', async () => {
     const fixture = TestBed.createComponent(App);
     fixture.detectChanges();
-    // Flush the header's GitHub-stars request so whenStable() can settle.
     TestBed.inject(HttpTestingController)
       .match(() => true)
       .forEach((req) => req.flush({ stargazers_count: 1 }));

@@ -1,10 +1,8 @@
 :host {
   display: block;
-  /* We own both-axis swipe-to-dismiss gestures on the toast itself. */
   touch-action: none;
 }
 
-/* Wrapper — single container for both pill and blob states */
 .wrapper {
   pointer-events: auto;
   cursor: default;
@@ -20,14 +18,11 @@
   margin-left: auto;
 }
 
-/* In merge mode the shared goo layer owns the (merged) drop-shadow, so drop
-   this toast's own shadow to avoid double-shadowing. */
 :host(.merge) .blob,
 :host(.merge) .wrapper[data-theme='dark'] .blob {
   filter: none;
 }
 
-/* SVG background — parametric morph from pill to blob */
 .blob {
   position: absolute;
   top: 0;
@@ -42,7 +37,6 @@
     drop-shadow(0 1px 4px rgba(0, 0, 0, 0.2));
 }
 
-/* Content on top of SVG background */
 .content {
   position: relative;
   z-index: 1;
@@ -64,17 +58,13 @@
   text-align: right;
 }
 
-/* Header */
 .header {
   display: inline-flex;
   align-items: center;
   gap: 8px;
   color: #555;
-  /* Accent glides between phase colours when a toast morphs type. */
   transition: color 0.35s ease;
 }
-/* Light-theme phase accents: darkened so the 12px title meets WCAG AA
-   (≥ 4.5:1) on the default white fill. */
 .header[data-phase='success'] {
   color: #2e7d32;
 }
@@ -126,15 +116,12 @@
 .title {
   font-size: 12px;
   font-weight: 700;
-  /* >1 so descenders (p, g, q) aren't clipped by overflow:hidden ellipsis box */
   line-height: 1.4;
   white-space: nowrap;
   color: inherit;
   padding: 0 4px 0 2px;
 }
 
-/* Coalesced-duplicate count badge (×2, ×3…). Inherits the phase color via
-   currentColor; tinted background keeps WCAG AA contrast in both themes. */
 .count-badge {
   flex-shrink: 0;
   margin-left: -4px;
@@ -151,7 +138,7 @@
 .timestamp {
   font-size: 11px;
   font-weight: 400;
-  color: #6b6b6b; /* ≥ 4.5:1 on white (was #999 ≈ 2.8:1) */
+  color: #6b6b6b;
   white-space: nowrap;
   line-height: 1;
   padding-left: 6px;
@@ -162,7 +149,7 @@
   padding-left: 0;
 }
 .wrapper[data-theme='dark'] .timestamp {
-  color: #9e9e9e; /* ≥ 4.5:1 on #1a1a1a (was #777 ≈ 3.9:1) */
+  color: #9e9e9e;
 }
 
 .description {
@@ -187,8 +174,6 @@
   color: #e0e0e0;
 }
 
-/* Fully custom toast body (toast.custom()) — the consumer template owns the
-   layout; we only set readable base text colors per theme. */
 .custom-body {
   font-size: 13px;
   line-height: 1.55;
@@ -199,7 +184,6 @@
   color: #e0e0e0;
 }
 
-/* Inline rich content (sanitized html / light markdown) inside a description */
 .rich-content {
   word-break: break-word;
 }
@@ -226,7 +210,6 @@
   color: #7aa2ff;
 }
 
-/* Action button */
 .action {
   display: flex;
   gap: 8px;
@@ -259,8 +242,6 @@
   outline: 2px solid currentColor;
   outline-offset: 2px;
 }
-/* Phase text on the tinted fills is darkened/lightened for ≥ 4.5:1 (AA);
-   hover is a uniform brightness shift so the ratio survives the hover state. */
 .action-btn:hover {
   filter: brightness(0.96);
 }
@@ -304,7 +285,6 @@
   color: #bbdefb;
 }
 
-/* Progress countdown bar */
 .progress {
   margin-top: 10px;
   overflow: hidden;
@@ -317,11 +297,8 @@
   height: 100%;
   border-radius: 2px;
   transform-origin: left center;
-  /* Driven from JS (driveProgress): a linear scaleX(1)→scaleX(0) shrink whose
-     duration is the live dismiss timer's remaining time, so the bar can never
-     drift from the real auto-dismiss. Hover freezes it; un-hover resumes. */
   transform: scaleX(1);
-  background: #757575; /* ≥ 3:1 (non-text UI) on white */
+  background: #757575;
   transition: background-color 0.35s ease;
 }
 .progress-bar[data-phase='success'] {
@@ -355,7 +332,6 @@
   background: #42a5f5;
 }
 
-/* Close button — appears on hover */
 .close {
   position: absolute;
   top: -6px;
@@ -397,11 +373,51 @@
   color: #e0e0e0;
 }
 
+/* Async action: button in a loading state while its Promise is pending. */
+.action-btn.pending {
+  cursor: progress;
+  opacity: 0.7;
+}
+.action-btn:disabled {
+  cursor: progress;
+}
+
+/* Rich colours: the blob is a saturated per-type fill, so all foreground text
+   flips to white for contrast (AA against the 700-shade fills). */
+.wrapper[data-rich] .header,
+.wrapper[data-rich] .header[data-phase],
+.wrapper[data-rich] .title,
+.wrapper[data-rich] .description,
+.wrapper[data-rich] .custom-body,
+.wrapper[data-rich] .timestamp,
+.wrapper[data-rich] .close {
+  color: #fff;
+}
+.wrapper[data-rich] .timestamp {
+  opacity: 0.85;
+}
+.wrapper[data-rich] .rich-content a {
+  color: #fff;
+  text-decoration-thickness: 2px;
+}
+.wrapper[data-rich] .rich-content code {
+  background: rgba(255, 255, 255, 0.22);
+}
+.wrapper[data-rich] .action-btn {
+  background: rgba(255, 255, 255, 0.9);
+  color: #1a1a1a;
+}
+.wrapper[data-rich] .progress {
+  background: rgba(255, 255, 255, 0.25);
+}
+.wrapper[data-rich] .progress-bar,
+.wrapper[data-rich] .progress-bar[data-phase] {
+  background: #fff;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .header,
   .action-btn {
     transition: none;
   }
-  /* The countdown bar is an informational progress indicator (not vestibular
-     motion); its shrink is driven by an inline transition in driveProgress. */
 }

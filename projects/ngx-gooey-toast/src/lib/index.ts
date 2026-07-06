@@ -1,4 +1,4 @@
-export { GooeyToasterComponent, orderStack } from './gooey-toaster.component'
+export { GooeyToasterComponent, orderStack, matchesHotkey } from './gooey-toaster.component'
 export { GooeyToastComponent } from './gooey-toast.component'
 export { GooeyIconComponent, type GooeyIconKind } from './gooey-icons.component'
 export {

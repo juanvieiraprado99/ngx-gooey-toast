@@ -4,6 +4,36 @@ All notable changes to this project are documented here. This file is generated
 from [Conventional Commit](https://www.conventionalcommits.org/) messages by
 `commit-and-tag-version` — do not edit it by hand.
 
+## [0.4.0](https://github.com/juanvieiraprado99/ngx-gooey-toast/compare/v0.3.1...v0.4.0) (2026-07-05)
+
+### Features
+
+* **toast:** async action buttons — an `action.onClick` that returns a Promise shows a loading state and holds the auto-dismiss until it settles, then flips to `successLabel`
+* **toaster:** `richColors` input — paint typed toasts with a saturated per-type fill (success green, error red, …) and white text; a per-toast `fillColor` still wins
+* **toaster:** focus hotkey — a configurable `hotkey` input (default `Alt+T`) moves keyboard focus into the toast stack, where Tab reaches each toast and pauses its timer; pass `null` to disable
+* **service:** `pauseAll()` / `resumeAll()` — freeze and resume every toast's auto-dismiss timer programmatically (e.g. while a dialog is open)
+* **service:** `queueSize` signal — read how many toasts are waiting in the overflow queue behind `visibleToasts`
+
+### Bug Fixes
+
+* **ssr:** fix a hydration mismatch on the metaball merge filter id — the per-instance counter is now root-provided, so it resets per server request and matches the client
+* **toast:** auto-dismiss a short-duration expanded toast that previously stayed open forever when `duration` was below the expand + collapse time
+* **toast:** cancel a pending delayed expand when a toast is dismissed mid-window, so it can no longer re-expand while leaving
+* **toaster:** clear the aria-live announcement timers when the toaster is destroyed
+* **service:** detach the `visibilitychange` listener on teardown (`ngOnDestroy`)
+
+### Performance Improvements
+
+* **toast:** reuse the cached content padding during collapse instead of another `getComputedStyle`
+
+### Accessibility
+
+* **toast:** announce the running duplicate count to screen readers when toasts coalesce (the count badge is `aria-hidden`)
+
+### Reliability
+
+* **toast:** log consumer callback errors (`action`, `cancel`, `onDismiss`, `onAutoClose`, `finally`) instead of silently swallowing them
+
 ## [0.3.1](https://github.com/juanvieiraprado99/ngx-gooey-toast/compare/v0.3.0...v0.3.1) (2026-07-02)
 
 

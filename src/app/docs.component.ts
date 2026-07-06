@@ -45,7 +45,6 @@ interface MethodRow {
         <app-install-tabs />
       </section>
 
-      <!-- AI / Agent Skill -->
       <section class="grid gap-4 border-b border-neutral-200 py-8 md:grid-cols-[16rem_1fr] md:gap-10">
         <div>
           <h3 class="font-semibold">AI / Agent Skill</h3>
@@ -74,7 +73,6 @@ interface MethodRow {
         </section>
       }
 
-      <!-- Toaster props -->
       <section class="grid gap-4 border-b border-neutral-200 py-8 md:grid-cols-[16rem_1fr] md:gap-10">
         <div>
           <h3 class="font-semibold">&lt;gooey-toaster&gt; inputs</h3>
@@ -106,7 +104,6 @@ interface MethodRow {
         </div>
       </section>
 
-      <!-- Toast options -->
       <section class="grid gap-4 border-b border-neutral-200 py-8 md:grid-cols-[16rem_1fr] md:gap-10">
         <div>
           <h3 class="font-semibold">GooeyToastOptions</h3>
@@ -136,7 +133,6 @@ interface MethodRow {
         </div>
       </section>
 
-      <!-- Service methods -->
       <section class="grid gap-4 border-b border-neutral-200 py-8 md:grid-cols-[16rem_1fr] md:gap-10">
         <div>
           <h3 class="font-semibold">GooeyToastService</h3>
@@ -384,6 +380,46 @@ toast.success('Boing!', { preset: 'bouncy' })
 toast.info('Custom spring', { spring: true, bounce: 0.5 })`,
     },
     {
+      title: 'Async action',
+      blurb:
+        'Return a Promise from action.onClick — the button shows a loading state and the toast holds its auto-dismiss until it settles, then flips to successLabel.',
+      code: `toast.show('Save changes?', {
+  duration: Infinity,
+  action: {
+    label: 'Save',
+    successLabel: 'Saved!',
+    onClick: () => api.save(form),  // returns a Promise
+  },
+})`,
+    },
+    {
+      title: 'Rich colors',
+      blurb:
+        'Set richColors on the toaster to paint typed toasts with a saturated per-type fill and white text. A per-toast fillColor still overrides it.',
+      code: `<gooey-toaster richColors />
+
+toast.success('Deploy succeeded')  // green blob
+toast.error('Build failed')        // red blob`,
+    },
+    {
+      title: 'Pause, resume & queue size',
+      blurb:
+        'Freeze every timer with pauseAll() (e.g. while a dialog is open) and resumeAll() after. queueSize() is a signal of how many toasts are waiting off-screen.',
+      code: `toast.pauseAll()
+openDialog().finally(() => toast.resumeAll())
+
+// how many are queued behind visibleToasts?
+const waiting = toast.queueSize()`,
+    },
+    {
+      title: 'Focus hotkey',
+      blurb:
+        'The toaster registers a keyboard shortcut (Alt+T by default) that moves focus into the stack; Tab then reaches each toast and pauses its timer. Change or disable it via the hotkey input.',
+      code: `<gooey-toaster hotkey="ctrl+shift+n" />
+<!-- or disable: -->
+<gooey-toaster [hotkey]="null" />`,
+    },
+    {
       title: 'Custom toast — complete example',
       blurb:
         'Full recipe for toast.custom(): your <ng-template> is the entire body (no built-in header/icon), so the component styles own the layout. fillColor paints the blob behind it; ariaLabel is required (screen readers + history). Important: the template renders inside the toast component, so default (emulated) style encapsulation will NOT reach it — use ViewEncapsulation.None (shown below) or global styles for the card classes.',
@@ -464,11 +500,13 @@ export class MessageToastComponent {
     { name: 'haptics', type: 'boolean', default: 'false', description: 'Vibrate on toast arrival (mobile, opt-in). Per-type pattern; respects reduced-motion. No sound.' },
     { name: 'historyLimit', type: 'number', default: '20', description: 'Max dismissed toasts kept for replay via the service (0 disables).' },
     { name: 'showTimestamp', type: 'boolean', default: 'true', description: 'Default for per-toast timestamps (each toast can override).' },
+    { name: 'richColors', type: 'boolean', default: 'false', description: 'Paint typed toasts with a saturated per-type fill (success green, error red…) and white text. Per-toast fillColor still wins.' },
+    { name: 'hotkey', type: 'string | null', default: "'alt+t'", description: 'Keyboard shortcut that moves focus into the stack (then Tab reaches each toast and pauses its timer). Format: modifiers + key, e.g. "ctrl+shift+n". null disables.' },
   ]
 
   protected readonly toastOptions: PropRow[] = [
     { name: 'description', type: 'string | TemplateRef | { html } | { markdown }', default: '', description: 'Body below the title. Plain string = text; { html } / { markdown } render sanitized rich content (scripts & handlers stripped); TemplateRef for full Angular content.' },
-    { name: 'action', type: 'GooeyToastAction', default: '', description: '{ label, onClick, successLabel? } action button.' },
+    { name: 'action', type: 'GooeyToastAction', default: '', description: '{ label, onClick, successLabel? } action button. onClick may return a Promise: the button shows a loading state and auto-dismiss is held until it settles, then flips to successLabel.' },
     { name: 'cancel', type: 'GooeyToastCancel', default: '', description: '{ label, onClick? } secondary cancel button; dismisses the toast on click.' },
     { name: 'icon', type: 'string | TemplateRef', default: '', description: 'Custom leading icon.' },
     { name: 'duration', type: 'number', default: '', description: 'Override auto-dismiss time (ms) for this toast.' },
@@ -500,5 +538,8 @@ export class MessageToastComponent {
     { signature: 'history()', returns: 'GooeyHistoryRecord[]', description: 'Dismissed toasts kept for replay (newest first; in-memory).' },
     { signature: 'replay(id)', returns: 'string | number | undefined', description: 'Re-fire a dismissed toast as a fresh one. Faithful (callbacks/colors/rich preserved).' },
     { signature: 'clearHistory()', returns: 'void', description: 'Clear the replay history.' },
+    { signature: 'pauseAll()', returns: 'void', description: 'Hold every toast’s auto-dismiss timer (e.g. while a modal is open).' },
+    { signature: 'resumeAll()', returns: 'void', description: 'Resume timers paused by pauseAll().' },
+    { signature: 'queueSize()', returns: 'number', description: 'Signal: how many toasts are waiting in the overflow queue (not yet on screen).' },
   ]
 }

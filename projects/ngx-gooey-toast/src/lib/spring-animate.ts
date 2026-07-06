@@ -33,7 +33,7 @@ export interface SpringConfig {
   stiffness?: number
   damping?: number
   mass?: number
-  duration?: number // seconds — used with `bounce` to derive stiffness/damping
+  duration?: number
   bounce?: number
   velocity?: number
   restDelta?: number
@@ -44,7 +44,7 @@ export type SpringOptions = SpringConfig & BaseOptions
 
 export interface TweenOptions extends BaseOptions {
   type?: 'tween'
-  duration: number // seconds
+  duration: number
   ease?: Easing
 }
 
@@ -58,9 +58,6 @@ function isSpring(o: AnimateOptions): o is SpringOptions {
   return o.type === 'spring' || s.stiffness != null || s.bounce != null
 }
 
-// ---------------------------------------------------------------------------
-// Cubic-bezier easing (Newton-Raphson sampler, same approach as CSS engines)
-// ---------------------------------------------------------------------------
 const NAMED_EASE: Record<string, readonly [number, number, number, number]> = {
   easeIn: [0.42, 0, 1, 1],
   easeOut: [0, 0, 0.58, 1],
@@ -88,7 +85,6 @@ function cubicBezier(p1x: number, p1y: number, p2x: number, p2y: number) {
       if (Math.abs(d) < 1e-6) break
       t -= x2 / d
     }
-    // Bisection fallback
     let lo = 0
     let hi = 1
     t = x
@@ -118,10 +114,6 @@ function resolveEasing(ease?: Easing): (t: number) => number {
   return cubicBezier(ease[0], ease[1], ease[2], ease[3])
 }
 
-// ---------------------------------------------------------------------------
-// Spring physics — analytic solution (matches framer-motion's spring feel).
-// duration/bounce → stiffness/damping via root-finding, identical to framer.
-// ---------------------------------------------------------------------------
 function calcAngularFreq(undampedFreq: number, dampingRatio: number) {
   return undampedFreq * Math.sqrt(1 - dampingRatio * dampingRatio)
 }
@@ -204,10 +196,10 @@ function startSpring(
   const restDelta = o.restDelta ?? 0.01
   const restSpeed = o.restSpeed ?? 2
   const v0 = o.velocity ?? 0
-  const delta0 = from - to // displacement from equilibrium
+  const delta0 = from - to
 
   const dampingRatio = damping / (2 * Math.sqrt(stiffness * mass))
-  const naturalFreq = Math.sqrt(stiffness / mass) // rad/s
+  const naturalFreq = Math.sqrt(stiffness / mass)
 
   let resolve: (t: number) => number
   if (dampingRatio < 1) {
@@ -253,10 +245,9 @@ function startSpring(
       startTime = now
       prevTime = now
     }
-    const t = (now - startTime) / 1000 // seconds since start
+    const t = (now - startTime) / 1000
     const value = resolve(t)
 
-    // Numerical speed (units/s) from the last frame for the rest check.
     const dt = (now - prevTime) / 1000
     const speed = dt > 0 ? Math.abs(value - prevValue) / dt : 0
     prevTime = now

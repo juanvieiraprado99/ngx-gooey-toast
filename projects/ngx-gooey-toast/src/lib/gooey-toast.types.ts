@@ -52,7 +52,12 @@ export interface GooeyToastClassNames {
 
 export interface GooeyToastAction {
   label: string
-  onClick: () => void
+  /**
+   * Runs on click. If it returns a Promise (or any thenable), the button shows a
+   * loading state and the toast's auto-dismiss is held until it settles; any
+   * other return value is ignored.
+   */
+  onClick: () => unknown
   successLabel?: string
 }
 
@@ -223,6 +228,10 @@ export interface GooeyToasterProps {
   historyLimit?: number
   /** Default for per-toast `showTimestamp` (each toast can still override). */
   showTimestamp?: boolean
+  /** Paint typed toasts with a per-type fill + white text. Default false. */
+  richColors?: boolean
+  /** Hotkey to focus the stack (`'alt+t'` default; `null` disables). */
+  hotkey?: string | null
   /**
    * Collapse repeated identical toasts into one with a count badge + pulse
    * instead of stacking them. Matches on type + title + string description.
@@ -234,9 +243,6 @@ export interface GooeyToasterProps {
   coalesceDuplicates?: boolean
 }
 
-// ---------------------------------------------------------------------------
-// Animation presets — ported from presets.ts
-// ---------------------------------------------------------------------------
 export interface AnimationPreset {
   bounce: number
   spring: boolean

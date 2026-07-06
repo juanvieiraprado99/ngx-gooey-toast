@@ -21,10 +21,6 @@ import { HeaderComponent } from './header.component'
 })
 export class App {
   constructor() {
-    // Angular's router anchor-scrolling uses ViewportScroller, which honors
-    // this configured offset but NOT CSS scroll-margin. Offset by the sticky
-    // header's live height (it morphs/wraps) plus a little breathing room so
-    // anchored sections land below it instead of behind it.
     inject(ViewportScroller).setOffset(() => {
       const header = document.querySelector('.site-header')
       return [0, (header?.clientHeight ?? 0) + 16]

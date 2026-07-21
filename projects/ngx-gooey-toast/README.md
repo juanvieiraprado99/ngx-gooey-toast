@@ -215,6 +215,28 @@ All create methods return the toast id (`string | number`).
 - Light-theme phase colors are tuned to **WCAG AA** (≥ 4.5:1 on white).
 - `prefers-reduced-motion` is respected (animations and haptics back off).
 
+## Troubleshooting & Compatibility
+
+### Angular 21+ CDK Overlay Compatibility
+
+Starting with Angular 21, `@angular/cdk/overlay` uses the native HTML Popover API by default (`usePopover: true`). This places CDK-based overlays (such as Dialogs, Drawers, Sheets, and Modals) into the browser's native **Top Layer** (`popover="auto"`), which bypasses standard CSS `z-index` stacking contexts. As a result, toasts emitted by `ngx-gooey-toast` can end up rendered behind open CDK overlays.
+
+To ensure toasts always appear on top of CDK Overlays, disable the native Popover API in your root application configuration to preserve standard `z-index` stacking order:
+
+```typescript
+// src/app/app.config.ts
+import { ApplicationConfig } from '@angular/core';
+import { OVERLAY_DEFAULT_CONFIG } from '@angular/cdk/overlay';
+
+export const appConfig: ApplicationConfig = {
+  providers: [
+    // Disable native HTML Popover API in Angular CDK 21+ to preserve standard z-index stacking order for toasts
+    { provide: OVERLAY_DEFAULT_CONFIG, useValue: { usePopover: false } },
+    // ... other providers
+  ],
+};
+```
+
 ## License
 
 [MIT](./LICENSE)
@@ -305,6 +327,26 @@ export class DemoComponent {
 
 `aria-live` (polite/assertive), contraste WCAG AA, timers pausam no hover e no
 foco do teclado (WCAG 2.2.1) e `prefers-reduced-motion` é respeitado.
+
+### Compatibilidade com Angular 21+ CDK Overlay
+
+A partir do Angular 21, o `@angular/cdk/overlay` usa a API nativa de Popover do HTML por padrão (`usePopover: true`). Isso coloca os overlays do CDK (como Dialogs, Drawers, Sheets e Modals) na **Top Layer** nativa do navegador (`popover="auto"`), ignorando os contextos de empilhamento standard do CSS (`z-index`). Como resultado, os toasts do `ngx-gooey-toast` podem renderizar atrás de overlays abertos do CDK.
+
+Para garantir que os toasts apareçam sempre no topo dos overlays do CDK, desative a API nativa de Popover na configuração raiz da aplicação:
+
+```typescript
+// src/app/app.config.ts
+import { ApplicationConfig } from '@angular/core';
+import { OVERLAY_DEFAULT_CONFIG } from '@angular/cdk/overlay';
+
+export const appConfig: ApplicationConfig = {
+  providers: [
+    // Desativa a API Popover nativa no Angular CDK 21+ para preservar a ordem de empilhamento z-index dos toasts
+    { provide: OVERLAY_DEFAULT_CONFIG, useValue: { usePopover: false } },
+    // ... outros providers
+  ],
+};
+```
 
 ### Licença
 

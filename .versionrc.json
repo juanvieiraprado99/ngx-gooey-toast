@@ -7,7 +7,7 @@
     { "type": "fix", "section": "Bug Fixes" },
     { "type": "perf", "section": "Performance Improvements" },
     { "type": "revert", "section": "Reverts" },
-    { "type": "docs", "hidden": true },
+    { "type": "docs", "section": "Documentation" },
     { "type": "style", "hidden": true },
     { "type": "chore", "hidden": true },
     { "type": "refactor", "section": "Refactors" },

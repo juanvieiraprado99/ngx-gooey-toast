@@ -46,6 +46,26 @@ Styling is component-scoped CSS (no Tailwind required by the library), tuned to
 WCAG AA. **For full usage and API docs, see
 [`projects/ngx-gooey-toast/`](./projects/ngx-gooey-toast).**
 
+## Angular 21+ CDK Overlay Compatibility
+
+Starting with Angular 21, `@angular/cdk/overlay` uses the native HTML Popover API by default (`usePopover: true`). This places CDK-based overlays (such as Dialogs, Drawers, Sheets, and Modals) into the browser's native **Top Layer** (`popover="auto"`), bypassing standard CSS `z-index` stacking contexts. Consequently, toasts can render behind open CDK overlays.
+
+To ensure toasts always appear on top of CDK Overlays, disable native HTML Popover API in your root provider configuration:
+
+```typescript
+// src/app/app.config.ts
+import { ApplicationConfig } from '@angular/core';
+import { OVERLAY_DEFAULT_CONFIG } from '@angular/cdk/overlay';
+
+export const appConfig: ApplicationConfig = {
+  providers: [
+    // Disable native HTML Popover API in Angular CDK 21+ to preserve standard z-index stacking order for toasts
+    { provide: OVERLAY_DEFAULT_CONFIG, useValue: { usePopover: false } },
+    // ... other providers
+  ],
+};
+```
+
 ## The demo page (`npm start`)
 
 A single playground page (`src/app/home.component.ts`) plus a `/changelog` route:
